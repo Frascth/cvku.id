@@ -4,9 +4,12 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThemeSelector } from './ThemeSelector';
 import { FileText, Settings, BarChart3, Brain, Palette } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
 
 export const Header: React.FC = () => {
   const location = useLocation();
+
+  const { logout, isAuthenticated } = useAuth();
   
   const isActive = (path: string) => location.pathname === path;
   
@@ -68,14 +71,26 @@ export const Header: React.FC = () => {
           
           <div className="flex items-center space-x-4">
             {/* <ThemeSelector /> */}
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/signin">Sign In</Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link to="/signup">Sign Up</Link>
-              </Button>
-            </div>
+            {isAuthenticated ? (
+              <div className="flex space-x-2">
+                <Button variant="outline" size="sm">
+                  Export PDF
+                </Button>
+                <Button onClick={logout} variant="outline" size="sm">
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <div className="flex space-x-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/signin">Sign In</Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link to="/signup">Sign Up</Link>
+                </Button>
+              </div>
+            )}
+
           </div>
         </div>
       </div>
