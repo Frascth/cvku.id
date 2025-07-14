@@ -1,5 +1,1 @@
-actor {
-  public query func greet(name : Text) : async Text {
-    return "Hello, " # name # "!";
-  };
-};
+// ini dikerjakan paling akhir gaes bagianya aptanta aja setelah fitur crud dimasing2 service selesai

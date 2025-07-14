@@ -1,23 +1,64 @@
 {
   "canisters": {
-    "resume_service": {
-      "main": "src/resume_service/main.mo",
-      "type": "motoko"
+    "internet_identity_service": {
+      "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
+      "type": "custom",
+      "specified_id": "rdmx6-jaaaa-aaaaa-aaadq-cai",
+      "remote": {
+        "id": {
+          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+        }
+      },
+      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz"
+    },
+    "llm_service": {
+      "candid": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.did",
+      "type": "custom",
+      "specified_id": "w36hm-eqaaa-aaaal-qr76a-cai",
+      "remote": {
+        "id": {
+          "ic": "w36hm-eqaaa-aaaal-qr76a-cai"
+        }
+      },
+      "wasm": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.wasm"
+    },
+    "auth_service": {
+      "type": "motoko",
+      "main": "src/auth_service/main.mo",
+      "dependencies": [
+        "internet_identity_service"
+      ]
+    },
+    "work_experience_service": {
+      "type": "motoko",
+      "main": "src/work_experience_service/main.mo",
+      "dependencies": [
+        "llm_service"
+      ]
+    },
+    "education_service": {
+      "type": "motoko",
+      "main": "src/education_service/main.mo",
+      "dependencies": [
+        "llm_service"
+      ]
     },
     "frontend": {
-      "dependencies": [
-      ],
+      "type": "assets",
       "source": [
         "src/frontend/dist"
       ],
-      "type": "assets",
-      "workspace": "frontend"
+      "dependencies": [
+        "auth_service",
+        "work_experience_service",
+        "education_service"
+      ]
     }
   },
   "defaults": {
     "build": {
       "args": "",
-      "packtool": ""
+      "packtool": "mops sources"
     }
   },
   "output_env_file": ".env",
