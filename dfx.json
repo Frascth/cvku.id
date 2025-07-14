@@ -1,0 +1,26 @@
+{
+  "canisters": {
+    "cvku_backend": {
+      "main": "src/cvku_backend/main.mo",
+      "type": "motoko"
+    },
+    "cvku_frontend": {
+      "dependencies": [
+        "cvku_backend"
+      ],
+      "source": [
+        "src/cvku_frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "cvku_frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
