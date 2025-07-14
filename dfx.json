@@ -1,18 +1,17 @@
 {
   "canisters": {
-    "cvku_backend": {
-      "main": "src/cvku_backend/main.mo",
+    "resume_service": {
+      "main": "src/resume_service/main.mo",
       "type": "motoko"
     },
-    "cvku_frontend": {
+    "frontend": {
       "dependencies": [
-        "cvku_backend"
       ],
       "source": [
-        "src/cvku_frontend/dist"
+        "src/frontend/dist"
       ],
       "type": "assets",
-      "workspace": "cvku_frontend"
+      "workspace": "frontend"
     }
   },
   "defaults": {
