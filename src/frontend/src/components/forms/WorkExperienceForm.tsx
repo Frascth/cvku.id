@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,22 +9,107 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Briefcase, Plus, Trash2, Save } from 'lucide-react';
 import { useResumeStore, WorkExperience } from '../../store/useResumeStore';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { createWorkExperienceHandler } from '@/lib/workExperienceHandler';
 
 export const WorkExperienceForm: React.FC = () => {
-  const { resumeData, addWorkExperience, updateWorkExperience, removeWorkExperience } = useResumeStore();
+  const { resumeData, setWorkExperience, addWorkExperience, updateWorkExperience, removeWorkExperience } = useResumeStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
 
-  const handleAdd = (experience: Omit<WorkExperience, 'id'>) => {
-    addWorkExperience(experience);
-    setShowAddForm(false);
+  const { authClient } = useAuth();
+
+  const workExpHandler = useMemo(() => {
+    if (authClient) {
+      return createWorkExperienceHandler(authClient);
+    }
+    return null;
+  }, [authClient]);
+
+  useEffect(() => {
+    const fetchExperience = async () => {
+      try {
+        const exps = await workExpHandler.clientGetAll();
+
+        setWorkExperience(exps);
+      } catch (error) {
+        console.error("Failed to fetch work experiences", error);
+      }
+    };
+
+    if (workExpHandler) {
+      fetchExperience();
+    }
+  }, [workExpHandler, setWorkExperience]);
+
+  const handleAdd = async (experience: Omit<WorkExperience, 'id'>) => {
+    try {
+      const addedExperience = await workExpHandler.clientAdd(experience);
+
+      addWorkExperience(addedExperience);
+
+      setShowAddForm(false);
+
+      toast({
+        title: "Work Experience Added",
+        description: `${addedExperience.jobTitle} added.`,
+      });
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "An Error Occurred",
+        description: "Something went wrong with the work experience service.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Saved!",
-      description: "Work experience has been saved successfully.",
-    });
+  const handleRemove = async (id:string) => {
+    try {
+      
+      const isDeleted = await workExpHandler.clientDeleteById(id);
+
+      removeWorkExperience(id);
+
+      toast({
+        title: isDeleted ? "Work Experience Deleted" : "Failed to Delete Work Experience",
+        description: isDeleted
+          ? "The selected work experience was successfully removed."
+          : "It may have already been deleted or not found.",
+        variant: isDeleted ? "default" : "destructive",
+      });
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "An Error Occurred",
+        description: "Something went wrong with the work experience service.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      const updatedWorkExps = await workExpHandler.clientSave(resumeData.workExperience);
+
+      setWorkExperience(updatedWorkExps);
+
+      toast({
+        title: "Saved!",
+        description: "Work experience has been saved successfully.",
+      });
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "An Error Occurred",
+        description: "Something went wrong with the work experience service.",
+        variant: "destructive",
+      });
+    }
+
   };
 
   return (
@@ -58,7 +143,7 @@ export const WorkExperienceForm: React.FC = () => {
             key={experience.id}
             experience={experience}
             onUpdate={(updates) => updateWorkExperience(experience.id, updates)}
-            onRemove={() => removeWorkExperience(experience.id)}
+            onRemove={() => handleRemove(experience.id)}
           />
         ))}
         

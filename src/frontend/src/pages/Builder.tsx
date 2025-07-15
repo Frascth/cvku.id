@@ -18,7 +18,6 @@ const Builder = () => {
   
   const navigate = useNavigate();
 
-
   const handleGenerateLink = () => {
     setShowLinkModal(true);
   };

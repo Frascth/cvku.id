@@ -75,6 +75,7 @@ interface ResumeStore {
   selectedTemplate: 'minimal' | 'modern' | 'professional';
   isPrivate: boolean;
   updatePersonalInfo: (info: Partial<ResumeData['personalInfo']>) => void;
+  setWorkExperience: (experiences: WorkExperience[]) => void;
   addWorkExperience: (experience: Omit<WorkExperience, 'id'>) => void;
   updateWorkExperience: (id: string, experience: Partial<WorkExperience>) => void;
   removeWorkExperience: (id: string) => void;
@@ -176,6 +177,14 @@ export const useResumeStore = create<ResumeStore>((set) => ({
       resumeData: {
         ...state.resumeData,
         personalInfo: { ...state.resumeData.personalInfo, ...info },
+      },
+    })),
+
+  setWorkExperience: (experiences) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        workExperience: experiences,
       },
     })),
 
