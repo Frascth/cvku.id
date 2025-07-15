@@ -5,24 +5,15 @@ import Array "mo:base/Array";
 import Text "mo:base/Text";
 import { nhash } "mo:map/Map";
 import LLM "mo:llm";
+import Type "../shared/Type";
 
 actor WorkExperienceService {
     
-    public type WorkExperience = {
-        id: Nat;
-        jobTitle: Text;
-        company: Text;
-        startDate: Text;
-        endDate: Text;
-        current: Bool;
-        description: Text;
-    };
-
-    private stable var workExpByPrincipal = Map.new<Principal, Map.Map<Nat, WorkExperience>>();
+    private stable var workExpByPrincipal = Map.new<Principal, Map.Map<Nat, Type.WorkExperience>>();
 
     private stable var nextId: Nat = 0;
 
-    public shared query ({ caller }) func clientGetAll() : async [WorkExperience] {
+    public shared query ({ caller }) func clientGetAll() : async [Type.WorkExperience] {
         switch (Map.get(workExpByPrincipal, Map.phash, caller)) {
             case (?experiencesMap) {
                 return Iter.toArray(Map.vals(experiencesMap));
@@ -34,7 +25,7 @@ actor WorkExperienceService {
     };
 
     // caller is resume_service
-    public shared query ({ caller = _ }) func getAllByClient(client:Principal) : async [WorkExperience] {
+    public shared query ({ caller = _ }) func getAllByClient(client:Principal) : async [Type.WorkExperience] {
         switch (Map.get(workExpByPrincipal, Map.phash, client)) {
             case (?experiencesMap) {
                 return Iter.toArray(Map.vals(experiencesMap));
@@ -52,10 +43,10 @@ actor WorkExperienceService {
         endDate: Text;
         current: Bool;
         description: Text;
-    }) : async WorkExperience {
+    }) : async Type.WorkExperience {
         nextId += 1;
 
-        let newExperience: WorkExperience = {
+        let newExperience: Type.WorkExperience = {
             id = nextId;
             jobTitle = request.jobTitle;
             company = request.company;
@@ -68,7 +59,7 @@ actor WorkExperienceService {
         // Get existing map or create a new one
         let workExperiencesById = switch (Map.get(workExpByPrincipal, Map.phash, caller)) {
             case (?workExps) workExps;
-            case null Map.new<Nat, WorkExperience>();
+            case null Map.new<Nat, Type.WorkExperience>();
         };
 
         Map.set(workExperiencesById, nhash, newExperience.id, newExperience);
@@ -78,13 +69,13 @@ actor WorkExperienceService {
         return newExperience;
     };
 
-    public shared ({ caller }) func clientBatchUpdate(newWorkExps: [WorkExperience]) : async [WorkExperience] {
+    public shared ({ caller }) func clientBatchUpdate(newWorkExps: [Type.WorkExperience]) : async [Type.WorkExperience] {
         let expById = switch (Map.get(workExpByPrincipal, Map.phash, caller)) {
             case (?val) val;
             case null return [];
         };
 
-        var updatedWorkExps : [WorkExperience] = [];
+        var updatedWorkExps : [Type.WorkExperience] = [];
 
         for (exp in newWorkExps.vals()) {
             switch (Map.get(expById, nhash, exp.id)) {
