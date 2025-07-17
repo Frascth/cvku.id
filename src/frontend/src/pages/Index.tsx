@@ -96,10 +96,10 @@ const Index = () => {
               </Button>
             ) : (
               <div className="flex items-center space-x-4">
-                <Button variant="ghost" onClick={() => navigate('/signin')}>
+                {/* <Button variant="ghost" onClick={() => navigate('/signin')}>
                   Sign In
-                </Button>
-                <Button onClick={() => navigate('/signup')}>
+                </Button> */}
+                <Button onClick={() => navigate('/signin')}>
                   Get Started
                 </Button>
               </div>)}

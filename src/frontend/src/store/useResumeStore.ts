@@ -76,10 +76,11 @@ interface ResumeStore {
   isPrivate: boolean;
   updatePersonalInfo: (info: Partial<ResumeData['personalInfo']>) => void;
   setWorkExperience: (experiences: WorkExperience[]) => void;
-  addWorkExperience: (experience: Omit<WorkExperience, 'id'>) => void;
+  addWorkExperience: (experience: WorkExperience) => void;
   updateWorkExperience: (id: string, experience: Partial<WorkExperience>) => void;
   removeWorkExperience: (id: string) => void;
-  addEducation: (education: Omit<Education, 'id'>) => void;
+  setEducation: (experiences: Education[]) => void;
+  addEducation: (education: Education) => void;
   updateEducation: (id: string, education: Partial<Education>) => void;
   removeEducation: (id: string) => void;
   addSkill: (skill: Omit<Skill, 'id'>) => void;
@@ -193,8 +194,7 @@ export const useResumeStore = create<ResumeStore>((set) => ({
       resumeData: {
         ...state.resumeData,
         workExperience: [
-          ...state.resumeData.workExperience,
-          { ...experience, id: Date.now().toString() },
+          ...state.resumeData.workExperience, experience,
         ],
       },
     })),
@@ -217,13 +217,20 @@ export const useResumeStore = create<ResumeStore>((set) => ({
       },
     })),
 
+  setEducation: (educations) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        education: educations,
+      },
+    })),
+
   addEducation: (education) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
         education: [
-          ...state.resumeData.education,
-          { ...education, id: Date.now().toString() },
+          ...state.resumeData.education, education,
         ],
       },
     })),
