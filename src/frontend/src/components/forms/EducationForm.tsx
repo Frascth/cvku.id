@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,22 +7,106 @@ import { Label } from '@/components/ui/label';
 import { GraduationCap, Plus, Trash2, Save } from 'lucide-react';
 import { useResumeStore, Education } from '../../store/useResumeStore';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { createEducationHandler } from '@/lib/educationHandler';
 
 export const EducationForm: React.FC = () => {
-  const { resumeData, addEducation, updateEducation, removeEducation } = useResumeStore();
+  const { resumeData, setEducation, addEducation, updateEducation, removeEducation } = useResumeStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
+  const { authClient } = useAuth();
 
-  const handleAdd = (education: Omit<Education, 'id'>) => {
-    addEducation(education);
-    setShowAddForm(false);
+  const educationHandler = useMemo(() => {
+    if (authClient) {
+      return createEducationHandler(authClient);
+    }
+    return null;
+  }, [authClient]);
+
+  useEffect(() => {
+    const fetchEducation = async () => {
+      try {
+        const edus = await educationHandler.clientGetAll();
+
+        setEducation(edus);
+      } catch (error) {
+        console.error("Failed to fetch educations", error);
+      }
+    };
+
+    if (educationHandler) {
+      fetchEducation();
+    }
+  }, [educationHandler, setEducation]);
+
+  const handleAdd = async (experience: Omit<Education, 'id'>) => {
+    try {
+      const addedEducation = await educationHandler.clientAdd(experience);
+
+      addEducation(addedEducation);
+
+      setShowAddForm(false);
+
+      toast({
+        title: "Education Added",
+        description: `${addedEducation.degree} added.`,
+      });
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "An Error Occurred",
+        description: "Something went wrong with the education service.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Saved!",
-      description: "Education information has been saved successfully.",
-    });
+  const handleRemove = async (id: string) => {
+    try {
+
+      const isDeleted = await educationHandler.clientDeleteById(id);
+
+      removeEducation(id);
+
+      toast({
+        title: isDeleted ? "Education Deleted" : "Failed to delete education",
+        description: isDeleted
+          ? "The selected education was successfully removed."
+          : "It may have already been deleted or not found.",
+        variant: isDeleted ? "default" : "destructive",
+      });
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "An Error Occurred",
+        description: "Something went wrong with the education service.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      const updatedEdus = await educationHandler.clientSave(resumeData.education);
+
+      setEducation(updatedEdus);
+
+      toast({
+        title: "Saved!",
+        description: "Education has been saved successfully.",
+      });
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "An Error Occurred",
+        description: "Something went wrong with the education service.",
+        variant: "destructive",
+      });
+    }
+
   };
 
   return (
@@ -56,10 +140,10 @@ export const EducationForm: React.FC = () => {
             key={education.id}
             education={education}
             onUpdate={(updates) => updateEducation(education.id, updates)}
-            onRemove={() => removeEducation(education.id)}
+            onRemove={() => handleRemove(education.id)}
           />
         ))}
-        
+
         {showAddForm && (
           <AddEducationForm
             onAdd={handleAdd}
@@ -98,7 +182,7 @@ const EducationItem: React.FC<EducationItemProps> = ({ education, onUpdate, onRe
               />
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <Label>Graduation Date</Label>
@@ -118,7 +202,7 @@ const EducationItem: React.FC<EducationItemProps> = ({ education, onUpdate, onRe
             </div>
           </div>
         </div>
-        
+
         <Button
           onClick={onRemove}
           variant="ghost"
@@ -154,7 +238,7 @@ const AddEducationForm: React.FC<AddEducationFormProps> = ({ onAdd, onCancel }) 
   return (
     <div className="p-4 border-2 border-dashed border-blue-200 rounded-lg space-y-3">
       <h4 className="font-medium text-gray-900">Add Education</h4>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <Label>Degree</Label>
@@ -173,7 +257,7 @@ const AddEducationForm: React.FC<AddEducationFormProps> = ({ onAdd, onCancel }) 
           />
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <Label>Graduation Date</Label>
@@ -192,7 +276,7 @@ const AddEducationForm: React.FC<AddEducationFormProps> = ({ onAdd, onCancel }) 
           />
         </div>
       </div>
-      
+
       <div className="flex space-x-2">
         <Button onClick={handleSubmit} size="sm">Add Education</Button>
         <Button onClick={onCancel} variant="outline" size="sm">Cancel</Button>
