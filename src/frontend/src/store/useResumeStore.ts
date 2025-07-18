@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import type { AuthClient } from '@dfinity/auth-client';
+import { createCertificationHandler } from '../lib/certificationHandler';
 
 export interface WorkExperience {
   id: string;
@@ -74,6 +76,12 @@ interface ResumeStore {
   resumeData: ResumeData;
   selectedTemplate: 'minimal' | 'modern' | 'professional';
   isPrivate: boolean;
+  // --- Penambahan untuk Backend Integration ---
+  certificationHandler: ReturnType<typeof createCertificationHandler> | null;
+  initializeHandlers: (authClient: AuthClient) => void;
+  fetchCertifications: () => Promise<void>; // Fungsi untuk mengambil data dari backend
+  saveAllCertifications: () => Promise<void>; // Fungsi untuk menyimpan semua sertifikasi ke backend (batch update)
+  // --- Akhir Penambahan ---
   updatePersonalInfo: (info: Partial<ResumeData['personalInfo']>) => void;
   setWorkExperience: (experiences: WorkExperience[]) => void;
   addWorkExperience: (experience: Omit<WorkExperience, 'id'>) => void;
@@ -85,9 +93,11 @@ interface ResumeStore {
   addSkill: (skill: Omit<Skill, 'id'>) => void;
   updateSkill: (id: string, skill: Partial<Skill>) => void;
   removeSkill: (id: string) => void;
-  addCertification: (certification: Omit<Certification, 'id'>) => void;
+  // --- Modifikasi Tipe Fungsi untuk Backend ---
+  addCertification: (certification: Omit<Certification, 'id'>) => Promise<void>; // Sekarang async
   updateCertification: (id: string, certification: Partial<Certification>) => void;
-  removeCertification: (id: string) => void;
+  removeCertification: (id: string) => Promise<void>; // Sekarang async
+  // --- Akhir Modifikasi ---
   addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => void;
   updateSocialLink: (id: string, socialLink: Partial<SocialLink>) => void;
   removeSocialLink: (id: string) => void;
@@ -149,7 +159,7 @@ const initialResumeData: ResumeData = {
       name: 'AWS Certified Developer',
       issuer: 'Amazon Web Services',
       date: '2023-06',
-      credentialId: 'AWS-DEV-2023-001',
+      credentialId: 'AWS-DEV-2023-001', // Ini benar untuk tipe frontend
     },
   ],
   socialLinks: [
@@ -167,10 +177,58 @@ const initialResumeData: ResumeData = {
   customSections: [],
 };
 
-export const useResumeStore = create<ResumeStore>((set) => ({
+export const useResumeStore = create<ResumeStore>((set, get) => ({ // <-- Tambahkan 'get' di sini
   resumeData: initialResumeData,
   selectedTemplate: 'modern',
   isPrivate: false,
+
+  // --- Implementasi Backend Integration ---
+  certificationHandler: null, // Default null, akan diinisialisasi
+  initializeHandlers: (authClient: AuthClient) => {
+    const handler = createCertificationHandler(authClient);
+    set({ certificationHandler: handler });
+  },
+
+  fetchCertifications: async () => {
+    const handler = get().certificationHandler;
+    if (!handler) {
+      console.error("Certification handler not initialized.");
+      // Anda bisa throw error atau mengembalikan Promise.reject() di sini
+      // agar komponen yang memanggil bisa menangani error
+      throw new Error("Certification handler not initialized.");
+    }
+    try {
+      const fetchedCerts = await handler.clientGetAll();
+      set(state => ({
+      resumeData: {
+        ...state.resumeData,
+        // Ini adalah type assertion sebagai upaya terakhir jika TypeScript masih salah
+        certifications: fetchedCerts as Certification[], 
+      },
+    }));
+    } catch (error) {
+      console.error("Failed to fetch certifications:", error);
+      throw error; // Re-throw for component to catch and show toast
+    }
+  },
+
+  saveAllCertifications: async () => {
+    const handler = get().certificationHandler;
+    if (!handler) {
+      console.error("Certification handler not initialized.");
+      throw new Error("Certification handler not initialized.");
+    }
+    try {
+      const currentCerts = get().resumeData.certifications;
+      await handler.clientSave(currentCerts); // Ini akan memanggil clientBatchUpdate di handler
+      // Opsional: fetch ulang setelah save jika ada kemungkinan perubahan di backend
+      // await get().fetchCertifications();
+    } catch (error) {
+      console.error("Failed to save all certifications:", error);
+      throw error; // Re-throw for component to catch and show toast
+    }
+  },
+  // --- Akhir Implementasi Backend Integration ---
 
   updatePersonalInfo: (info) =>
     set((state) => ({
@@ -270,16 +328,26 @@ export const useResumeStore = create<ResumeStore>((set) => ({
       },
     })),
 
-  addCertification: (certification) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        certifications: [
-          ...state.resumeData.certifications,
-          { ...certification, id: Date.now().toString() },
-        ],
-      },
-    })),
+  // --- Implementasi addCertification yang diubah untuk Backend ---
+  addCertification: async (cert: Omit<Certification, 'id'>) => { // Perhatikan 'async'
+    const handler = get().certificationHandler;
+    if (!handler) {
+      console.error("Certification handler not initialized.");
+      throw new Error("Certification handler not initialized."); // Penting untuk throw error
+    }
+    try {
+      const newCertWithId = await handler.clientAdd(cert); // Panggil backend
+      set(state => ({
+        resumeData: {
+          ...state.resumeData,
+          certifications: [...state.resumeData.certifications, newCertWithId],
+        },
+      }));
+    } catch (error) {
+      console.error("Failed to add certification to backend:", error);
+      throw error; // Re-throw for component to handle
+    }
+  },
 
   updateCertification: (id, certification) =>
     set((state) => ({
@@ -291,13 +359,30 @@ export const useResumeStore = create<ResumeStore>((set) => ({
       },
     })),
 
-  removeCertification: (id) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        certifications: state.resumeData.certifications.filter((cert) => cert.id !== id),
-      },
-    })),
+  // --- Implementasi removeCertification yang diubah untuk Backend ---
+  removeCertification: async (id: string) => { // Perhatikan 'async'
+    const handler = get().certificationHandler;
+    if (!handler) {
+      console.error("Certification handler not initialized.");
+      throw new Error("Certification handler not initialized.");
+    }
+    try {
+      const success = await handler.clientDeleteById(id); // Panggil backend
+      if (success) {
+        set(state => ({
+          resumeData: {
+            ...state.resumeData,
+            certifications: state.resumeData.certifications.filter((cert) => cert.id !== id),
+          },
+        }));
+      } else {
+        throw new Error("Backend reported failure to delete certification.");
+      }
+    } catch (error) {
+      console.error("Failed to remove certification from backend:", error);
+      throw error;
+    }
+  },
 
   addSocialLink: (socialLink) =>
     set((state) => ({

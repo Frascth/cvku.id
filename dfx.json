@@ -43,6 +43,15 @@
         "llm_service"
       ]
     },
+
+    "certification_service": {
+      "type": "motoko",
+      "main": "src/certification_service/main.mo",
+      "dependencies": [
+        "llm_service"
+      ]
+    },
+
     "frontend": {
       "type": "assets",
       "source": [
@@ -51,7 +60,8 @@
       "dependencies": [
         "auth_service",
         "work_experience_service",
-        "education_service"
+        "education_service",
+        "certification_service"
       ]
     }
   },

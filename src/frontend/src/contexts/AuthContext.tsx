@@ -7,6 +7,7 @@ interface AuthContextProps {
   actor: ActorSubclass<_SERVICE> | null;
   authClient: AuthClient | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   principal: string;
   login: () => Promise<void>;
   logout: () => Promise<void>;

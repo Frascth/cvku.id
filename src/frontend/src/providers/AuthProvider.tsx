@@ -58,6 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         actor,
         authClient,
         isAuthenticated,
+        isLoading: !authClient, // Assuming loading state is true until authClient is initialized
         principal,
         login,
         logout,
