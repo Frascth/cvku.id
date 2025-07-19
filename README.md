@@ -18,17 +18,18 @@ This project addresses common challenges in today's professional world, such as 
 3. **Secure Decentralized Authentication (Internet Identity)**: User authentication is handled through Internet Identity, a built-in feature of the Internet Computer. This provides a highly secure and convenient login experience for users, eliminating traditional usernames and passwords while offering strong cryptographic guarantees and enhanced privacy by removing centralized identity providers.
 
 # Build and deployment instructions for local development
-1. Clone project
+1. install IC SDK see [https://internetcomputer.org/docs/building-apps/getting-started/install](https://internetcomputer.org/docs/building-apps/getting-started/install)
+2. Clone project
    ```bash
    git clone https://github.com/Frascth/cvku.id.git
-2. Open the project with ur favorite IDE
-3. Install Node JS package
+3. Open the project with ur favorite IDE
+4. Install Node JS package
    ```bash
    npm i
-4. Install Motoko package
+5. Install Motoko package
    ```bash
    mops install
-5. Install Ollama (for AI feature)
+6. Install Ollama (for AI feature)
 
    Windows download here: [https://ollama.com/download/windows](https://ollama.com/download/windows)
    
@@ -37,20 +38,20 @@ This project addresses common challenges in today's professional world, such as 
    Linux run this command:
    ```bash
    curl -fsSL https://ollama.com/install.sh | sh
-7. Download llama3.1:8b model (for AI feature)
+8. Download llama3.1:8b model (for AI feature)
     ```bash
     ollama pull llama3.1:8b
-8. Start Ollama service (for AI feature)
+9. Start Ollama service (for AI feature)
     ```bash
     ollama serve
-9. Start IC Network
-   ```bash
-   dfx stop
-   dfx start --clean --background
-10. Deploy canister
+10. Start IC Network
+    ```bash
+    dfx stop
+    dfx start --clean --background
+11. Deploy canister
     ```bash
     dfx deploy
-11. Open the front end canister url, and start building resume
+12. Open the front end canister url, and start building resume
 
 # ICP Features Used
 1. Caller Identification
