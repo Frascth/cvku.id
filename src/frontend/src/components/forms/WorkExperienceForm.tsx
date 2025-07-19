@@ -1,30 +1,143 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Briefcase, Plus, Trash2, Save } from 'lucide-react';
+import { Briefcase, Plus, Trash2, Save, Wand2 } from 'lucide-react';
 import { useResumeStore, WorkExperience } from '../../store/useResumeStore';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { createWorkExperienceHandler } from '@/lib/workExperienceHandler';
 
 export const WorkExperienceForm: React.FC = () => {
-  const { resumeData, addWorkExperience, updateWorkExperience, removeWorkExperience } = useResumeStore();
+  const { resumeData, setWorkExperience, addWorkExperience, updateWorkExperience, removeWorkExperience } = useResumeStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
 
-  const handleAdd = (experience: Omit<WorkExperience, 'id'>) => {
-    addWorkExperience(experience);
-    setShowAddForm(false);
+  const { authClient } = useAuth();
+
+  const workExpHandler = useMemo(() => {
+    if (authClient) {
+      return createWorkExperienceHandler(authClient);
+    }
+    return null;
+  }, [authClient]);
+
+  useEffect(() => {
+    const fetchExperience = async () => {
+      try {
+        const exps = await workExpHandler.clientGetAll();
+
+        setWorkExperience(exps);
+      } catch (error) {
+        console.error("Failed to fetch work experiences", error);
+      }
+    };
+
+    if (workExpHandler) {
+      fetchExperience();
+    }
+  }, [workExpHandler, setWorkExperience]);
+
+  const handleAdd = async (experience: Omit<WorkExperience, 'id'>) => {
+    try {
+      const addedExperience = await workExpHandler.clientAdd(experience);
+
+      addWorkExperience(addedExperience);
+
+      setShowAddForm(false);
+
+      toast({
+        title: "Work Experience Added",
+        description: `${addedExperience.jobTitle} added.`,
+      });
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "An Error Occurred",
+        description: "Something went wrong with the work experience service.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Saved!",
-      description: "Work experience has been saved successfully.",
-    });
+  const handleRemove = async (id: string) => {
+    try {
+
+      const isDeleted = await workExpHandler.clientDeleteById(id);
+
+      removeWorkExperience(id);
+
+      toast({
+        title: isDeleted ? "Work Experience Deleted" : "Failed to Delete Work Experience",
+        description: isDeleted
+          ? "The selected work experience was successfully removed."
+          : "It may have already been deleted or not found.",
+        variant: isDeleted ? "default" : "destructive",
+      });
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "An Error Occurred",
+        description: "Something went wrong with the work experience service.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      const updatedWorkExps = await workExpHandler.clientSave(resumeData.workExperience);
+
+      setWorkExperience(updatedWorkExps);
+
+      toast({
+        title: "Saved!",
+        description: "Work experience has been saved successfully.",
+      });
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "An Error Occurred",
+        description: "Something went wrong with the work experience service.",
+        variant: "destructive",
+      });
+    }
+
+  };
+
+  const handleGenerateAiDescription = async (jobTitle: string): Promise<string> => {
+    try {
+      const result = await workExpHandler.clientGenerateAiDesc(jobTitle);
+
+      toast({
+        title: "Description Generated!",
+        description: "Your AI-generated description is ready for review and customization.",
+      });
+
+      let formatted = ``;
+      result.forEach(desc => {
+        formatted += `- ${desc}\n`;
+      });
+
+      return formatted;
+    } catch (error) {
+      toast({
+        title: "Missing Information",
+        description: "Something went wrong with the work experience service.",
+        variant: "destructive",
+      });
+
+      return "";
+    } finally {
+    }
+
   };
 
   return (
@@ -58,14 +171,16 @@ export const WorkExperienceForm: React.FC = () => {
             key={experience.id}
             experience={experience}
             onUpdate={(updates) => updateWorkExperience(experience.id, updates)}
-            onRemove={() => removeWorkExperience(experience.id)}
+            onRemove={() => handleRemove(experience.id)}
+            onGenerateAiDesc={handleGenerateAiDescription}
           />
         ))}
-        
+
         {showAddForm && (
           <AddExperienceForm
             onAdd={handleAdd}
             onCancel={() => setShowAddForm(false)}
+            onGenerateAiDesc={handleGenerateAiDescription}
           />
         )}
       </CardContent>
@@ -77,9 +192,33 @@ interface ExperienceItemProps {
   experience: WorkExperience;
   onUpdate: (updates: Partial<WorkExperience>) => void;
   onRemove: () => void;
+  onGenerateAiDesc: (jobTitle: string) => Promise<string>;
 }
 
-const ExperienceItem: React.FC<ExperienceItemProps> = ({ experience, onUpdate, onRemove }) => {
+const ExperienceItem: React.FC<ExperienceItemProps> = ({ experience, onUpdate, onRemove, onGenerateAiDesc }) => {
+  const [isAiGeneratingDesc, setIsAiGeneratingDesc] = useState(false);
+
+  const [isCanGenerateAiDesc, setIsCanGenerateAiDesc] = useState(false);
+
+  useEffect(() => {
+    const isCanGenerate = !!(experience.jobTitle);
+
+    setIsCanGenerateAiDesc(isCanGenerate);
+
+  }, [experience])
+
+  const handleGenerateAiDesc = async () => {
+    setIsAiGeneratingDesc(true);
+
+    const aiDesc = await onGenerateAiDesc(experience.jobTitle);
+
+    const updatedDesc = experience.description + aiDesc;
+
+    onUpdate({ description: updatedDesc });
+
+    setIsAiGeneratingDesc(false);
+  };
+
   return (
     <div className="p-4 border rounded-lg space-y-3">
       <div className="flex justify-between items-start">
@@ -100,7 +239,7 @@ const ExperienceItem: React.FC<ExperienceItemProps> = ({ experience, onUpdate, o
               />
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <div>
               <Label>Start Date</Label>
@@ -128,17 +267,39 @@ const ExperienceItem: React.FC<ExperienceItemProps> = ({ experience, onUpdate, o
               <Label htmlFor={`current-${experience.id}`}>Current</Label>
             </div>
           </div>
-          
+
+          <div className="flex justify-end align-middle">
+            <Button
+              onClick={handleGenerateAiDesc}
+              disabled={isAiGeneratingDesc || !isCanGenerateAiDesc}
+              size="lg"
+              className="flex items-center space-x-2"
+            >
+              {isAiGeneratingDesc ? (
+                <>
+                  <Wand2 className="w-4 h-4 animate-spin" />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4" />
+                  <span>Generate Description</span>
+                </>
+              )}
+            </Button>
+          </div>
+
           <div>
             <Label>Description</Label>
             <Textarea
+              disabled={isAiGeneratingDesc}
               value={experience.description}
               onChange={(e) => onUpdate({ description: e.target.value })}
-              rows={3}
+              rows={5}
             />
           </div>
         </div>
-        
+
         <Button
           onClick={onRemove}
           variant="ghost"
@@ -155,9 +316,10 @@ const ExperienceItem: React.FC<ExperienceItemProps> = ({ experience, onUpdate, o
 interface AddExperienceFormProps {
   onAdd: (experience: Omit<WorkExperience, 'id'>) => void;
   onCancel: () => void;
+  onGenerateAiDesc: (jobTitle: string) => Promise<string>;
 }
 
-const AddExperienceForm: React.FC<AddExperienceFormProps> = ({ onAdd, onCancel }) => {
+const AddExperienceForm: React.FC<AddExperienceFormProps> = ({ onAdd, onCancel, onGenerateAiDesc }) => {
   const [formData, setFormData] = useState({
     jobTitle: '',
     company: '',
@@ -167,16 +329,39 @@ const AddExperienceForm: React.FC<AddExperienceFormProps> = ({ onAdd, onCancel }
     description: '',
   });
 
+  const [isAiGeneratingDesc, setIsAiGeneratingDesc] = useState(false);
+
+  const [isCanGenerateAiDesc, setIsCanGenerateAiDesc] = useState(false);
+
+  useEffect(() => {
+    const isCanGenerate = !!(formData.jobTitle);
+
+    setIsCanGenerateAiDesc(isCanGenerate);
+
+  }, [formData])
+
   const handleSubmit = () => {
     if (formData.jobTitle && formData.company) {
       onAdd(formData);
     }
   };
 
+  const handleGenerateAiDesc = async () => {
+    setIsAiGeneratingDesc(true);
+
+    const aiDesc = await onGenerateAiDesc(formData.jobTitle);
+
+    const updatedDesc = formData.description + aiDesc;
+
+    setFormData({ ...formData, description: updatedDesc });
+
+    setIsAiGeneratingDesc(false);
+  };
+
   return (
     <div className="p-4 border-2 border-dashed border-blue-200 rounded-lg space-y-3">
       <h4 className="font-medium text-gray-900">Add Work Experience</h4>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <Label>Job Title</Label>
@@ -195,7 +380,7 @@ const AddExperienceForm: React.FC<AddExperienceFormProps> = ({ onAdd, onCancel }
           />
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
         <div>
           <Label>Start Date</Label>
@@ -222,17 +407,39 @@ const AddExperienceForm: React.FC<AddExperienceFormProps> = ({ onAdd, onCancel }
           <Label>Current</Label>
         </div>
       </div>
-      
+
+      <div className="flex justify-end align-middle">
+        <Button
+          onClick={handleGenerateAiDesc}
+          disabled={isAiGeneratingDesc || !isCanGenerateAiDesc}
+          size="lg"
+          className="flex items-center space-x-2"
+        >
+          {isAiGeneratingDesc ? (
+            <>
+              <Wand2 className="w-4 h-4 animate-spin" />
+              <span>Generating...</span>
+            </>
+          ) : (
+            <>
+              <Wand2 className="w-4 h-4" />
+              <span>Generate Description</span>
+            </>
+          )}
+        </Button>
+      </div>
+
       <div>
         <Label>Description</Label>
         <Textarea
+          disabled={isAiGeneratingDesc}
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          rows={3}
+          rows={5}
           placeholder="Describe your role and achievements..."
         />
       </div>
-      
+
       <div className="flex space-x-2">
         <Button onClick={handleSubmit} size="sm">Add Experience</Button>
         <Button onClick={onCancel} variant="outline" size="sm">Cancel</Button>

@@ -1,5 +1,4 @@
 import Text "mo:base/Text";
-import SkillLevel "./SkillLevel";
 
 module {
   // one to one
@@ -33,6 +32,18 @@ module {
   //   },
   // };
 
+  public type SkillLevel = Text;
+
+  public let LEVEL_BEGINNER : SkillLevel = "Beginner";
+  public let LEVEL_INTERMEDIATE : SkillLevel = "Intermediate";
+  public let LEVEL_ADVANCED : SkillLevel = "Advanced";
+  public let LEVEL_EXPERT : SkillLevel = "Expert";
+
+  public type Role = Text;
+
+  public let ROLE_CLIENT : Role = "client";
+  public let ROLE_ADMIN : Role = "admin";
+
   public type PersonalInfo = {
     fullName : Text;
     email : Text;
@@ -64,7 +75,7 @@ module {
   public type Skill = {
     id : Text;
     name : Text;
-    level : SkillLevel.SkillLevel;
+    level : SkillLevel;
   };
 
   public type Certification = {
