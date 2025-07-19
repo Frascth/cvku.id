@@ -2,6 +2,16 @@ import { create } from 'zustand';
 import type { AuthClient } from '@dfinity/auth-client';
 import { createCertificationHandler } from '../lib/certificationHandler';
 
+export interface PersonalInfo {
+  fullName: string;
+  email: string;
+  phone: string;
+  location: string;
+  website: string;
+  bio: string;
+  photoUrl?: string;
+}
+
 export interface WorkExperience {
   id: string;
   jobTitle: string;
@@ -55,15 +65,7 @@ export interface CustomSection {
 }
 
 export interface ResumeData {
-  personalInfo: {
-    fullName: string;
-    email: string;
-    phone: string;
-    location: string;
-    website: string;
-    bio: string;
-    photoUrl?: string;
-  };
+  personalInfo: PersonalInfo;
   workExperience: WorkExperience[];
   education: Education[];
   skills: Skill[];
@@ -82,7 +84,7 @@ interface ResumeStore {
   fetchCertifications: () => Promise<void>; // Fungsi untuk mengambil data dari backend
   saveAllCertifications: () => Promise<void>; // Fungsi untuk menyimpan semua sertifikasi ke backend (batch update)
   // --- Akhir Penambahan ---
-  updatePersonalInfo: (info: Partial<ResumeData['personalInfo']>) => void;
+  updatePersonalInfo: (info: Partial<PersonalInfo>) => void;
   setWorkExperience: (experiences: WorkExperience[]) => void;
   addWorkExperience: (experience: WorkExperience) => void;
   updateWorkExperience: (id: string, experience: Partial<WorkExperience>) => void;
@@ -111,41 +113,16 @@ interface ResumeStore {
 
 const initialResumeData: ResumeData = {
   personalInfo: {
-    fullName: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    location: 'San Francisco, CA',
-    website: 'https://johndoe.dev',
-    bio: 'Passionate software engineer with 5+ years of experience in full-stack development. Specialized in React, Node.js, and cloud technologies.',
+    fullName: '',
+    email: '',
+    phone: '',
+    location: '',
+    website: '',
+    bio: '',
   },
   workExperience: [
-    {
-      id: '1',
-      jobTitle: 'Senior Software Engineer',
-      company: 'Tech Corp',
-      startDate: '2022-01',
-      endDate: '',
-      current: true,
-      description: 'Led development of scalable web applications using React and Node.js. Mentored junior developers and improved system performance by 40%.',
-    },
-    {
-      id: '2',
-      jobTitle: 'Software Engineer',
-      company: 'StartupXYZ',
-      startDate: '2020-03',
-      endDate: '2021-12',
-      current: false,
-      description: 'Built responsive frontend applications and RESTful APIs. Collaborated with design team to implement pixel-perfect UIs.',
-    },
   ],
   education: [
-    {
-      id: '1',
-      degree: 'Bachelor of Science in Computer Science',
-      institution: 'University of California, Berkeley',
-      graduationDate: '2020-05',
-      gpa: '3.8',
-    },
   ],
   skills: [
     { id: '1', name: 'JavaScript', level: 'Expert' },
@@ -155,13 +132,6 @@ const initialResumeData: ResumeData = {
     { id: '5', name: 'Python', level: 'Intermediate' },
   ],
   certifications: [
-    {
-      id: '1',
-      name: 'AWS Certified Developer',
-      issuer: 'Amazon Web Services',
-      date: '2023-06',
-      credentialId: 'AWS-DEV-2023-001', // Ini benar untuk tipe frontend
-    },
   ],
   socialLinks: [
     {

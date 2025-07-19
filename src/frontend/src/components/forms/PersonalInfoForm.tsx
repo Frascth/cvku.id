@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,16 +9,68 @@ import { useResumeStore } from '../../store/useResumeStore';
 import { PhotoUpload } from '../PhotoUpload';
 import { Button } from '../ui/button';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/hooks/use-auth';
+import { createPersonalInfoHandler } from '@/lib/personalInfoHandler';
+
 export const PersonalInfoForm: React.FC = () => {
   const { resumeData, updatePersonalInfo } = useResumeStore();
   const { personalInfo } = resumeData;
   const { toast } = useToast();
-  const handleSave = () => {
-    toast({
-      title: "Saved!",
-      description: "Education information has been saved successfully.",
-    });
+  const { authClient } = useAuth();
+
+  const personalInfoHandler = useMemo(() => {
+    if (authClient) {
+      return createPersonalInfoHandler(authClient);
+    }
+    return null;
+  }, [authClient]);
+
+  useEffect(() => {
+    const fetchPersonalInfo = async () => {
+      try {
+        const personalInfo = await personalInfoHandler.clientGet();
+
+        updatePersonalInfo(personalInfo);
+      } catch (error) {
+        console.error("Failed to fetch personal info", error);
+      }
+    };
+
+    if (personalInfoHandler) {
+      fetchPersonalInfo();
+    }
+  }, [personalInfoHandler, updatePersonalInfo]);
+
+  const handleSave = async () => {
+    try {
+      const isMandatoryFilled = !!(personalInfo.bio && personalInfo.email && personalInfo.fullName && personalInfo.location && personalInfo.phone && personalInfo.website);
+
+      if (!isMandatoryFilled) {
+        toast({
+          title: "All field must be filled",
+          description: "All field must be filled",
+          variant: "destructive",
+        });
+
+        return;
+      }
+
+      personalInfoHandler.clientSave(personalInfo);
+
+      toast({
+        title: "Personal info saved",
+      });
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "An Error Occurred",
+        description: "Something went wrong with the personal info service.",
+        variant: "destructive",
+      });
+    }
   };
+
   return (
     <Card>
       <CardHeader>

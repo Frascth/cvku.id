@@ -6,7 +6,8 @@
       "specified_id": "rdmx6-jaaaa-aaaaa-aaadq-cai",
       "remote": {
         "id": {
-          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai",
+          "playground": "rdmx6-jaaaa-aaaaa-aaadq-cai"
         }
       },
       "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz"
@@ -17,39 +18,32 @@
       "specified_id": "w36hm-eqaaa-aaaal-qr76a-cai",
       "remote": {
         "id": {
-          "ic": "w36hm-eqaaa-aaaal-qr76a-cai"
+          "ic": "w36hm-eqaaa-aaaal-qr76a-cai",
+          "playground": "w36hm-eqaaa-aaaal-qr76a-cai"
         }
       },
       "wasm": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.wasm"
     },
     "auth_service": {
       "type": "motoko",
-      "main": "src/auth_service/main.mo",
-      "dependencies": [
-        "internet_identity_service"
-      ]
+      "main": "src/auth_service/main.mo"
+    },
+    "personal_info_service": {
+      "type": "motoko",
+      "main": "src/personal_info_service/main.mo"
     },
     "work_experience_service": {
       "type": "motoko",
-      "main": "src/work_experience_service/main.mo",
-      "dependencies": [
-        "llm_service"
-      ]
+      "main": "src/work_experience_service/main.mo"
     },
     "education_service": {
       "type": "motoko",
-      "main": "src/education_service/main.mo",
-      "dependencies": [
-        "llm_service"
-      ]
+      "main": "src/education_service/main.mo"
     },
 
     "certification_service": {
       "type": "motoko",
-      "main": "src/certification_service/main.mo",
-      "dependencies": [
-        "llm_service"
-      ]
+      "main": "src/certification_service/main.mo"
     },
 
     "frontend": {
@@ -59,6 +53,7 @@
       ],
       "dependencies": [
         "auth_service",
+        "personal_info_service",
         "work_experience_service",
         "education_service",
         "certification_service"

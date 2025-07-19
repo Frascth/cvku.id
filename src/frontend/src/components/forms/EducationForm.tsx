@@ -135,6 +135,10 @@ export const EducationForm: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {resumeData.education.length === 0 && !showAddForm && (
+            <p className="text-gray-500 text-center py-4">No education added yet. Click "Add" to start.</p>
+        )}
+
         {resumeData.education.map((education) => (
           <EducationItem
             key={education.id}
