@@ -3,6 +3,7 @@ import Principal "mo:base/Principal";
 import Iter "mo:base/Iter";
 import Array "mo:base/Array";
 import Text "mo:base/Text";
+import Error "mo:base/Error";
 import { nhash } "mo:map/Map";
 import LLM "mo:llm";
 import Type "../shared/Type";
@@ -108,30 +109,21 @@ actor WorkExperienceService {
 
     public query func descriptionPromptOf(request: {
         jobTitle: Text;
-        company: Text;
-        startDate: Text;
-        endDate: Text;
-        current: Bool;
     }) : async Text {
-        let currentStatus = if (request.current) { "present" } else { request.endDate };
-
-        let prompt = 
-            "based on the following input, infer 3 realistic and quantifiable resume bullet points. " #
-            "Only return the points; no intro, no explanation. " #
-            "Each point must: " #
+        let prompt =
+            "Based on the following job details, infer 3 realistic and quantifiable resume bullet points. " #
+            "focus solely on extracting quantifiable achievements from the role. " #
+            "**Only return the points, separated by one pipeline characters |. No intro, no explanation, no conversational text before or after the points.** " #
+            "Each point MUST adhere to these strict rules: " #
             "  - Start with a strong action verb. " #
-            "  - Mention relevant technical skills. " #
-            "  - Include a quantifiable result or impact (e.g., percentages, numbers, time saved, revenue generated). " #
+            "  - Clearly mention relevant technical skills. " #
+            "  - Include a specific, quantifiable result or impact (e.g., percentages, exact numbers, time saved, revenue generated, efficiency improvements). " #
             "  - Be concise (under 25 words). " #
             "  - Maintain a professional tone. " #
-            "Separate each point with three pipeline char ||| " #
             "Example Output Format: " #
-            "Managed Agile sprints for 5-developer team, increasing feature delivery by 15% using Jira.|||Developed Python scripts to automate data ETL, reducing manual processing time by 20 hours/month.|||Optimized cloud infrastructure on AWS, cutting operational costs by 10% through resource reallocation." #
-            "Input: " #
-            "job title: " # request.jobTitle # " " #
-            "company: " # request.company # " " #
-            "start date: " # request.startDate # " " #
-            "end date: " # currentStatus # " " #
+            "Managed Agile sprints for 5-developer team, increasing feature delivery by 15% using Jira.|Developed Python scripts to automate data ETL, reducing manual processing time by 20 hours/month.|Optimized cloud infrastructure on AWS, cutting operational costs by 10% through resource reallocation." #
+            "Input Details for Inference: " #
+            "Job Title: " # request.jobTitle # " " #
             "Output:";
 
         return prompt;
@@ -139,16 +131,25 @@ actor WorkExperienceService {
 
     public shared ({ caller = _ }) func clientGenerateAiDescription(request: {
         jobTitle: Text;
-        company: Text;
-        startDate: Text;
-        endDate: Text;
-        current: Bool;
     }) : async [Text] {
         let prompt = await descriptionPromptOf(request);
 
         let result:Text = await LLM.prompt(#Llama3_1_8B, prompt);
 
-        let iterOfDesc = Text.split(result, #text "|||");
+        let lowerResult = Text.toLowercase(result);
+
+        if (Text.contains(lowerResult, #text "|") == false) {
+            throw Error.reject("Invalid result format: " # result);
+        };
+
+        if (Text.contains(lowerResult, #text "i cannot") or
+            Text.contains(lowerResult, #text "i'm sorry") or
+            Text.contains(lowerResult, #text "unable to")
+        ) {
+            throw Error.reject("LLM refused to generate description: " # result);
+        };
+
+        let iterOfDesc = Text.split(result, #text "|");
 
         // return as array for more flexibility on frontend
         return Iter.toArray(iterOfDesc);

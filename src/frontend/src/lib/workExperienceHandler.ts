@@ -54,5 +54,9 @@ export function createWorkExperienceHandler(authClient: AuthClient) {
       return await actor.clientDeleteById(BigInt(id));
     },
 
+    clientGenerateAiDesc: async (jobTitle:string):Promise<string[]> => {
+      return await actor.clientGenerateAiDescription({jobTitle});
+    }
+
   };
 }
