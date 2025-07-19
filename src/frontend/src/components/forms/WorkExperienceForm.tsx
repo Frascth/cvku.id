@@ -166,6 +166,10 @@ export const WorkExperienceForm: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {resumeData.workExperience.length === 0 && !showAddForm && (
+            <p className="text-gray-500 text-center py-4">No work experience added yet. Click "Add" to start.</p>
+        )}
+
         {resumeData.workExperience.map((experience) => (
           <ExperienceItem
             key={experience.id}
