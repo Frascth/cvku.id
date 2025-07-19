@@ -28,6 +28,10 @@
       "type": "motoko",
       "main": "src/auth_service/main.mo"
     },
+    "personal_info_service": {
+      "type": "motoko",
+      "main": "src/personal_info_service/main.mo"
+    },
     "work_experience_service": {
       "type": "motoko",
       "main": "src/work_experience_service/main.mo"
@@ -39,10 +43,7 @@
 
     "certification_service": {
       "type": "motoko",
-      "main": "src/certification_service/main.mo",
-      "dependencies": [
-        "llm_service"
-      ]
+      "main": "src/certification_service/main.mo"
     },
 
     "frontend": {
@@ -52,6 +53,7 @@
       ],
       "dependencies": [
         "auth_service",
+        "personal_info_service",
         "work_experience_service",
         "education_service",
         "certification_service"
