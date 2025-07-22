@@ -1,6 +1,13 @@
 import { create } from 'zustand';
-import type { AuthClient } from '@dfinity/auth-client';
+import { devtools } from 'zustand/middleware';
+import { AuthClient } from '@dfinity/auth-client';
+import { ActorSubclass, HttpAgent } from '@dfinity/agent';
+import { Principal } from '@dfinity/principal';
+import { toast } from 'sonner';
 import { createCertificationHandler } from '../lib/certificationHandler';
+import { createSkillsHandler } from '../lib/skillsHandler'; // Pastikan ini terimpor
+
+export type SkillLevel = string;
 
 export interface PersonalInfo {
   fullName: string;
@@ -33,7 +40,7 @@ export interface Education {
 export interface Skill {
   id: string;
   name: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+  level: SkillLevel; // Sekarang 'level' di 'Skill' adalah 'string'
 }
 
 export interface Certification {
@@ -74,15 +81,27 @@ export interface ResumeData {
   customSections: CustomSection[];
 }
 
-interface ResumeStore {
+export interface ResumeStore {
   resumeData: ResumeData;
   selectedTemplate: 'minimal' | 'modern' | 'professional';
   isPrivate: boolean;
   // --- Penambahan untuk Backend Integration ---
   certificationHandler: ReturnType<typeof createCertificationHandler> | null;
+  skillsHandler: ReturnType<typeof createSkillsHandler> | null;
   initializeHandlers: (authClient: AuthClient) => void;
-  fetchCertifications: () => Promise<void>; // Fungsi untuk mengambil data dari backend
-  saveAllCertifications: () => Promise<void>; // Fungsi untuk menyimpan semua sertifikasi ke backend (batch update)
+  // --- FUNGSI CRUD UNTUK SKILL ---
+  fetchSkills: () => Promise<void>;
+  saveAllSkills: () => Promise<void>; // <<< Tambahkan ini: Untuk menyimpan semua skill ke backend (batch update)
+  addSkill: (skill: Omit<Skill, 'id'>) => Promise<void>;
+  updateSkill: (id: string, skill: Partial<Omit<Skill, 'id'>>) => void; // <<< Tidak lagi async, hanya update lokal
+  removeSkill: (id: string) => Promise<void>;
+
+  // --- FUNGSI CRUD UNTUK CERTIFICATION (tetap sama) ---
+  fetchCertifications: () => Promise<void>;
+  saveAllCertifications: () => Promise<void>;
+  addCertification: (cert: Omit<Certification, 'id'>) => Promise<void>;
+  updateCertification: (id: string, cert: Partial<Omit<Certification, 'id'>>) => void; // Tidak async
+  removeCertification: (id: string) => Promise<void>;
   // --- Akhir Penambahan ---
   updatePersonalInfo: (info: Partial<PersonalInfo>) => void;
   setWorkExperience: (experiences: WorkExperience[]) => void;
@@ -93,14 +112,6 @@ interface ResumeStore {
   addEducation: (education: Education) => void;
   updateEducation: (id: string, education: Partial<Education>) => void;
   removeEducation: (id: string) => void;
-  addSkill: (skill: Omit<Skill, 'id'>) => void;
-  updateSkill: (id: string, skill: Partial<Skill>) => void;
-  removeSkill: (id: string) => void;
-  // --- Modifikasi Tipe Fungsi untuk Backend ---
-  addCertification: (certification: Omit<Certification, 'id'>) => Promise<void>; // Sekarang async
-  updateCertification: (id: string, certification: Partial<Certification>) => void;
-  removeCertification: (id: string) => Promise<void>; // Sekarang async
-  // --- Akhir Modifikasi ---
   addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => void;
   updateSocialLink: (id: string, socialLink: Partial<SocialLink>) => void;
   removeSocialLink: (id: string) => void;
@@ -148,17 +159,40 @@ const initialResumeData: ResumeData = {
   customSections: [],
 };
 
-export const useResumeStore = create<ResumeStore>((set, get) => ({ // <-- Tambahkan 'get' di sini
-  resumeData: initialResumeData,
-  selectedTemplate: 'modern',
-  isPrivate: false,
+export const useResumeStore = create<ResumeStore>()(
+  devtools(
+    (set, get) => ({
+      resumeData: initialResumeData,
+      selectedTemplate: 'modern',
+      isPrivate: false,
 
   // --- Implementasi Backend Integration ---
   certificationHandler: null, // Default null, akan diinisialisasi
+  skillsHandler: null,
   initializeHandlers: (authClient: AuthClient) => {
-    const handler = createCertificationHandler(authClient);
-    set({ certificationHandler: handler });
-  },
+        try {
+          const certHandler = createCertificationHandler(authClient);
+          const skillHandler = createSkillsHandler(authClient); // Inisialisasi skillsHandler
+
+          set({
+            certificationHandler: certHandler,
+            skillsHandler: skillHandler,
+          });
+
+          // Setelah handlers diinisialisasi, fetch data awal
+          // get().fetchPersonalInfo();
+          // get().fetchCertifications();
+          // get().fetchSkills(); // Panggil fetchSkills
+          // get().fetchWorkExperience();
+          // get().fetchEducation();
+          // get().fetchSocialLinks();
+          // get().fetchCustomSections();
+
+        } catch (error) {
+          console.error("Failed to initialize handlers:", error);
+          toast.error(`Initialization failed: ${(error as Error).message || error}`);
+        }
+      },
 
   fetchCertifications: async () => {
     const handler = get().certificationHandler;
@@ -200,6 +234,74 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({ // <-- Tambah
     }
   },
   // --- Akhir Implementasi Backend Integration ---
+
+  fetchSkills: async () => {
+        const handler = get().skillsHandler;
+        if (!handler) { toast.error("Skills service not ready."); return; }
+        try {
+          const fetchedSkills = await handler.clientGetAllSkills();
+          set(state => ({ resumeData: { ...state.resumeData, skills: fetchedSkills } }));
+          toast.success("Skills loaded!");
+        } catch (error) {
+          console.error("Failed to fetch skills:", error);
+          toast.error(`Failed to load skills: ${(error as Error).message || error}`);
+        }
+      },
+
+  saveAllSkills: async () => {
+    const handler = get().skillsHandler;
+    if (!handler) { toast.error("Skills service not ready. Cannot save skills."); return; }
+    try {
+        const currentSkills = get().resumeData.skills;
+        // Ganti handler.clientSave menjadi handler.clientBatchUpdateSkills
+        await handler.clientBatchUpdateSkills(currentSkills);
+        toast.success('All Skills saved successfully!');
+    } catch (error) {
+        console.error("Failed to save all skills:", error);
+        toast.error(`Failed to save all skills: ${(error as Error).message || error}`);
+    }
+},
+
+  addSkill: async (skillData) => {
+    const handler = get().skillsHandler;
+    if (!handler) { toast.error("Skills service not ready. Cannot add skill."); return; }
+    try {
+        // Ganti handler.clientAdd menjadi handler.clientAddSkill
+        const newSkill = await handler.clientAddSkill(skillData);
+        set(state => ({ resumeData: { ...state.resumeData, skills: [...state.resumeData.skills, newSkill] } }));
+        toast.success('Skill added successfully!');
+    } catch (error) {
+        console.error("Failed to add skill:", error);
+        toast.error(`Failed to add skill: ${(error as Error).message || error}`);
+    }
+},
+    
+  updateSkill: (id, updatedFields) => {
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            skills: state.resumeData.skills.map((s) => (s.id === id ? { ...s, ...updatedFields } : s)),
+          },
+        }));
+        toast.info("Skill updated locally. Remember to call `saveAllSkills` to sync with backend.");
+      },
+
+      removeSkill: async (id) => {
+        const handler = get().skillsHandler;
+        if (!handler) { toast.error("Skills service not ready. Cannot remove skill."); return; }
+        try {
+          const success = await handler.clientDeleteById(id);
+          if (success) {
+            set(state => ({ resumeData: { ...state.resumeData, skills: state.resumeData.skills.filter(s => s.id !== id) } }));
+            toast.success('Skill removed successfully!');
+          } else {
+            toast.error('Failed to remove skill from backend.');
+          }
+        } catch (error) {
+          console.error("Error in removeSkill:", error);
+          toast.error(`Failed to remove skill: ${(error as Error).message || error}`);
+        }
+      },
 
   updatePersonalInfo: (info) =>
     set((state) => ({
@@ -278,30 +380,6 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({ // <-- Tambah
       resumeData: {
         ...state.resumeData,
         education: state.resumeData.education.filter((edu) => edu.id !== id),
-      },
-    })),
-
-  addSkill: (skill) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        skills: [...state.resumeData.skills, { ...skill, id: Date.now().toString() }],
-      },
-    })),
-
-  updateSkill: (id, skill) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        skills: state.resumeData.skills.map((s) => (s.id === id ? { ...s, ...skill } : s)),
-      },
-    })),
-
-  removeSkill: (id) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        skills: state.resumeData.skills.filter((skill) => skill.id !== id),
       },
     })),
 
@@ -421,4 +499,5 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({ // <-- Tambah
 
   setTemplate: (template) => set({ selectedTemplate: template }),
   setPrivacy: (isPrivate) => set({ isPrivate }),
-}));
+}))
+);
