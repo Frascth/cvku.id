@@ -6,12 +6,17 @@ import { ActorSubclass } from '@dfinity/agent';
 import { _SERVICE } from '../../../declarations/auth_service/auth_service.did.js';
 import { AuthContext } from '@/contexts/AuthContext.js';
 
-const network = import.meta.env.DFX_NETWORK || 'local';
+const network = process.env.DFX_NETWORK || 'local';
 
-const identityProvider =
-  network === 'ic'
-    ? 'https://identity.ic0.app'
-    : 'http://rdmx6-jaaaa-aaaaa-aaadq-cai.localhost:4943';
+let identityProvider = 'https://identity.ic0.app'; // Mainnet
+
+if (network === 'playground') {
+  identityProvider = 'https://identity.internetcomputer.org' // Playground (DFINITY's testnet)
+}
+
+if (network === 'local') {
+  identityProvider = 'http://rdmx6-jaaaa-aaaaa-aaadq-cai.localhost:4943'; // Local
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authClient, setAuthClient] = useState<AuthClient | null>(null);
