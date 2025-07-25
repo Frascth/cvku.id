@@ -15,7 +15,8 @@ if (network === 'playground') {
 }
 
 if (network === 'local') {
-  identityProvider = 'http://rdmx6-jaaaa-aaaaa-aaadq-cai.localhost:4943'; // Local
+  const iiCanisterId = process.env.CANISTER_ID_INTERNET_IDENTITY_SERVICE;
+  identityProvider = `http://${iiCanisterId}.localhost:4943`; // Local
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
