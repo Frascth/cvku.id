@@ -3,14 +3,14 @@
     "internet_identity_service": {
       "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
       "type": "custom",
-      "specified_id": "rdmx6-jaaaa-aaaaa-aaadq-cai",
+      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz",
       "remote": {
         "id": {
           "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai",
           "playground": "rdmx6-jaaaa-aaaaa-aaadq-cai"
         }
       },
-      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz"
+      "frontend": {}
     },
     "llm_service": {
       "candid": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.did",
@@ -46,6 +46,11 @@
       "main": "src/certification_service/main.mo"
     },
 
+    "skills_service": { 
+      "type": "motoko",
+      "main": "src/skills_service/main.mo"
+    },
+
     "frontend": {
       "type": "assets",
       "source": [
@@ -56,7 +61,8 @@
         "personal_info_service",
         "work_experience_service",
         "education_service",
-        "certification_service"
+        "certification_service",
+        "skills_service"
       ]
     }
   },

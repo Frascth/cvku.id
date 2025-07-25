@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,24 +6,38 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Zap, Plus, X, Save } from 'lucide-react';
-import { useResumeStore, Skill } from '../../store/useResumeStore';
+// Pastikan Skill diimpor dari useResumeStore, dan SkillLevel jika Anda ingin menggunakannya
+import { useResumeStore, Skill } from '../../store/useResumeStore'; // Perhatikan impor Skill di sini
 import { useToast } from '@/hooks/use-toast';
 
 export const SkillsForm: React.FC = () => {
-  const { resumeData, addSkill, updateSkill, removeSkill } = useResumeStore();
+  // Dapatkan saveAllSkills dari useResumeStore
+  const { resumeData, addSkill, updateSkill, removeSkill, saveAllSkills } = useResumeStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
 
+  // Ini sudah memanggil addSkill dari store yang sudah async dan berinteraksi dengan backend
   const handleAdd = (skill: Omit<Skill, 'id'>) => {
-    addSkill(skill);
+    addSkill(skill); // addSkill sudah async di useResumeStore
     setShowAddForm(false);
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Saved!",
-      description: "Skills have been saved successfully.",
-    });
+  // Fungsi ini yang akan memicu penyimpanan semua skill ke backend
+  const handleSaveAllSkills = async () => {
+    try {
+      await saveAllSkills(); // Panggil fungsi saveAllSkills dari useResumeStore
+      toast({
+        title: "Success",
+        description: "All skills have been saved to the backend.",
+      });
+    } catch (error) {
+      console.error("Failed to save skills:", error);
+      toast({
+        title: "Error",
+        description: `Failed to save skills: ${(error as Error).message || "An unknown error occurred."}`,
+        variant: "destructive",
+      });
+    }
   };
 
   const getSkillLevelColor = (level: string) => {
@@ -46,7 +59,8 @@ export const SkillsForm: React.FC = () => {
             <span>Skills</span>
           </div>
           <div className="flex space-x-2">
-            <Button onClick={handleSave} size="sm" variant="outline" className="flex items-center space-x-1">
+            {/* Ubah onClick dari handleSave menjadi handleSaveAllSkills */}
+            <Button onClick={handleSaveAllSkills} size="sm" variant="outline" className="flex items-center space-x-1">
               <Save className="w-4 h-4" />
               <span>Save</span>
             </Button>
@@ -71,9 +85,10 @@ export const SkillsForm: React.FC = () => {
               className={`${getSkillLevelColor(skill.level)} flex items-center space-x-1 px-3 py-1.5`}
             >
               <span>{skill.name}</span>
+              {/* Jika SkillLevel adalah string, ini seharusnya tidak masalah */}
               <span className="text-xs">({skill.level})</span>
               <button
-                onClick={() => removeSkill(skill.id)}
+                onClick={() => removeSkill(skill.id)} // removeSkill sudah async di useResumeStore
                 className="ml-1 hover:text-red-600"
               >
                 <X className="w-3 h-3" />
@@ -81,7 +96,7 @@ export const SkillsForm: React.FC = () => {
             </Badge>
           ))}
         </div>
-        
+
         {showAddForm && (
           <AddSkillForm
             onAdd={handleAdd}
@@ -101,20 +116,21 @@ interface AddSkillFormProps {
 const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
   const [formData, setFormData] = useState({
     name: '',
-    level: 'Intermediate' as Skill['level'],
+    // Jika SkillLevel di useResumeStore adalah `string`, maka ini sudah benar
+    level: 'Intermediate', // Tidak perlu `as Skill['level']` jika SkillLevel adalah string
   });
 
   const handleSubmit = () => {
     if (formData.name) {
       onAdd(formData);
-      setFormData({ name: '', level: 'Intermediate' });
+      setFormData({ name: '', level: 'Intermediate' }); // Reset form
     }
   };
 
   return (
     <div className="p-4 border-2 border-dashed border-blue-200 rounded-lg space-y-3">
       <h4 className="font-medium text-gray-900">Add Skill</h4>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <Label>Skill Name</Label>
@@ -128,7 +144,8 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
           <Label>Proficiency Level</Label>
           <Select
             value={formData.level}
-            onValueChange={(value) => setFormData({ ...formData, level: value as Skill['level'] })}
+            // Jika SkillLevel di useResumeStore adalah `string`, maka ini sudah benar
+            onValueChange={(value) => setFormData({ ...formData, level: value })} // Tidak perlu `as Skill['level']`
           >
             <SelectTrigger>
               <SelectValue />
@@ -142,7 +159,7 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
           </Select>
         </div>
       </div>
-      
+
       <div className="flex space-x-2">
         <Button onClick={handleSubmit} size="sm">Add Skill</Button>
         <Button onClick={onCancel} variant="outline" size="sm">Cancel</Button>
