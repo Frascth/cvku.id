@@ -82,8 +82,8 @@ This project addresses common challenges in today's professional world, such as 
 11. Deploy canister
     ```bash
     dfx deploy
-12. Open the front end canister url, and start building resume
-
+12. Launch the Resume Builder and Start Creating Your Story
+    
 # ICP Features Used
 1. Caller Identification
 2. Candid Serialization
