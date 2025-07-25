@@ -141,7 +141,11 @@ const Index = () => {
             <div className="flex items-center justify-center space-x-6 mt-8 text-sm text-gray-500">
               <div className="flex items-center space-x-1">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>No signup required</span>
+                <span>AI Asistant</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span>Analytics Dashboard</span>
               </div>
               <div className="flex items-center space-x-1">
                 <CheckCircle className="w-4 h-4 text-green-500" />
@@ -149,7 +153,7 @@ const Index = () => {
               </div>
               <div className="flex items-center space-x-1">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>Always Free</span>
+                <span>Mostly Free</span>
               </div>
             </div>
           </div>
