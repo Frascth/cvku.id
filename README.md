@@ -40,8 +40,8 @@ This project addresses common challenges in today's professional world, such as 
 7. **Shareable Online Resume**: Easily share a professional, web-based version of your resume with potential employers, recruiters, or your network, expanding your visibility and reach.
 
 # Pitch Deck
-[https://www.canva.com/design/DAGuIP2fstg/_8uQu0DDmuUFiiLwx-AY1w/view?utm_content=DAGuIP2fstg&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h0d81e4f0a6
-](https://www.canva.com/design/DAGuIP2fstg/_8uQu0DDmuUFiiLwx-AY1w/view?utm_content=DAGuIP2fstg&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h0d81e4f0a6
+[https://www.canva.com/design/DAGuIP2fstg/_8uQu0DDmuUFiiLwx-AY1w/view
+](https://www.canva.com/design/DAGuIP2fstg/_8uQu0DDmuUFiiLwx-AY1w/view
 )
 # Architecture Description
 1. **Modular/Microservice Architecture**: We've strategically adopted a modular/microservice architecture, where each core feature operates as an independent service. This approach offers significant advantages: individual services scale independently for enhanced scalability, failures are isolated for improved resilience, and teams can develop and deploy features autonomously, leading to faster development cycles. Additionally, it allows for a flexible technology stack by enabling the use of optimal tools for each task, and simplifies maintenance due to smaller, more focused codebases.
