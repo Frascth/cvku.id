@@ -3,6 +3,33 @@
 
 This project addresses common challenges in today's professional world, such as the difficulty of verifying credentials, lack of control over personal data, and reliance on centralized platforms. With its Web3-based approach, users have full control over their identity and data and can move their resumes across platforms without losing their validity or professional history.
 
+# Project Overview
+**Landing**
+<img width="1345" height="623" alt="Screenshot From 2025-07-25 16-35-47" src="https://github.com/user-attachments/assets/f4eaaa15-c032-4b04-967e-d98f1490a946" />
+
+**Login**
+<img width="1345" height="623" alt="Screenshot From 2025-07-25 16-36-02" src="https://github.com/user-attachments/assets/b0b9678b-7cc6-428a-a493-86460db6e971" />
+
+**Resume Builder**
+<img width="1345" height="623" alt="Screenshot From 2025-07-25 17-24-36" src="https://github.com/user-attachments/assets/203c215e-237a-44fd-a215-04e6f3f87754" />
+
+**AI Assistant**
+<img width="1345" height="623" alt="Screenshot From 2025-07-25 16-58-53" src="https://github.com/user-attachments/assets/3963edb4-99e4-4f81-8136-74c658285cbd" />
+
+**ATS Optimization**
+<img width="1345" height="623" alt="Screenshot From 2025-07-25 17-17-29" src="https://github.com/user-attachments/assets/310df04a-9a65-4a85-a0dd-a74935acfd68" />
+
+**Resume Score**
+<img width="1345" height="623" alt="Screenshot From 2025-07-25 17-17-37" src="https://github.com/user-attachments/assets/81014a7f-06ce-4584-afb5-fae3d3091b26" />
+
+**AI Cover Letter Builder**
+<img width="1345" height="623" alt="Screenshot From 2025-07-25 17-17-44" src="https://github.com/user-attachments/assets/42b25e9a-c3c8-44cb-a770-8fe407b7af95" />
+
+**Analytics Dashboard**
+<img width="1345" height="623" alt="Screenshot From 2025-07-25 17-18-26" src="https://github.com/user-attachments/assets/34367ae8-a2dc-438b-ba8d-e30212764b07" />
+
+**Future Enhancements Underway...**
+
 # Features
 1. **AI-Powered Resume Builder**: Leverage advanced artificial intelligence to effortlessly generate tailored resume content, transforming your professional experience into compelling narratives that stand out.
 2. **Real-time Live Preview**: Visualize your resume's final appearance instantly as you make edits, ensuring perfect formatting and layout before export
