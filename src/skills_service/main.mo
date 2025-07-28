@@ -1,20 +1,22 @@
-// src/skills_service/main.mo
+// src/skills_service/main.mo (ADAPTED FROM work_experience_service)
+
 import Map "mo:map/Map";
 import Principal "mo:base/Principal";
 import Iter "mo:base/Iter";
 import Array "mo:base/Array";
 import Text "mo:base/Text";
-import Nat "mo:base/Nat"; // <-- Pastikan ini ada untuk Nat.toText
+import Nat "mo:base/Nat"; // Masih perlu untuk generateSkillId
 import { thash } "mo:map/Map"; // <-- PENTING: Untuk Text hash
-import { phash } "mo:map/Map"; // Untuk Principal hash
+// import Debug "mo:base/Debug"; // Opsional: Jaga ini jika Anda ingin Debug.print
 
-// Import tipe Skill dan SkillLevel dari shared/Type.mo
 import Type "../shared/Type";
 
-actor {
+actor SkillsService {
     // State untuk menyimpan skills per principal
     // Kunci inner Map sekarang adalah Text, sesuai dengan Skill.id
-    private stable var skillsByPrincipal = Map.new<Principal, Map.Map<Text, Type.Skill>>(); // <-- Berubah di sini
+    // Gunakan Map.Map untuk inner Map, sama seperti WorkExperienceService
+    private stable var skillsByPrincipal = Map.new<Principal, Map.Map<Text, Type.Skill>>(); // <-- Kembali ke Map.Map untuk inner
+
     private stable var nextSkillIdNum: Nat = 0; // Menggunakan nama berbeda untuk counter Nat
 
     // Fungsi helper untuk menghasilkan ID unik (Text)
@@ -26,12 +28,12 @@ actor {
 
     // Helper untuk mendapatkan Map skill untuk caller tertentu, atau membuat yang baru
     // Tipe kunci inner Map di sini juga Text
-    private func getOrCreateSkillsMap(caller: Principal) : Map.Map<Text, Type.Skill> { // <-- Berubah di sini
-        switch (Map.get(skillsByPrincipal, phash, caller)) {
+    private func getOrCreateSkillsMap(caller: Principal) : Map.Map<Text, Type.Skill> { // <-- Kembali ke Map.Map
+        switch (Map.get(skillsByPrincipal, Map.phash, caller)) {
             case (?skills) skills;
             case null {
-                let newMap = Map.new<Text, Type.Skill>(); // <-- Berubah di sini
-                Map.set(skillsByPrincipal, phash, caller, newMap);
+                let newMap = Map.new<Text, Type.Skill>(); // <-- Kembali ke Map.new
+                Map.set(skillsByPrincipal, Map.phash, caller, newMap);
                 newMap
             };
         };
@@ -41,9 +43,9 @@ actor {
 
     // Mendapatkan semua skills untuk caller saat ini
     public shared query ({ caller }) func clientGetAllSkills() : async [Type.Skill] {
-        switch (Map.get(skillsByPrincipal, phash, caller)) {
+        switch (Map.get(skillsByPrincipal, Map.phash, caller)) {
             case (?skillsById) {
-                return Iter.toArray(Map.vals(skillsById));
+                return Iter.toArray(Map.vals(skillsById)); // <-- Gunakan Map.vals
             };
             case null {
                 return [];
@@ -59,7 +61,7 @@ actor {
         let id = generateSkillId(); // Menggunakan helper untuk mendapatkan ID Text
 
         let newSkill: Type.Skill = {
-            id = id; // <-- Sekarang id adalah Text
+            id = id;
             name = request.name;
             level = request.level;
         };
@@ -73,7 +75,7 @@ actor {
 
     // Memperbarui skills yang sudah ada (batch update)
     public shared ({ caller }) func clientBatchUpdateSkills(newSkills: [Type.Skill]) : async [Type.Skill] {
-        let skillsById = switch (Map.get(skillsByPrincipal, phash, caller)) {
+        let skillsById = switch (Map.get(skillsByPrincipal, Map.phash, caller)) {
             case (?val) val;
             case null return [];
         };
@@ -84,31 +86,39 @@ actor {
             Map.set(skillsById, thash, skill.id, skill); // <-- Gunakan thash di sini
             updatedSkills := Array.append(updatedSkills, [skill]);
         };
-        // Catatan: Jika Anda ingin hanya mengupdate yang ada, Anda bisa menambahkan cek `Map.get` sebelum `Map.set`
-        // seperti di versi sebelumnya, tapi ini sudah update "if exists, then update" karena Map.set.
-        // Jika skill.id tidak ada, Map.set akan menambahkannya.
 
         return updatedSkills;
     };
 
     // Menghapus skill berdasarkan ID
-    public shared ({ caller }) func clientDeleteSkillById(id: Text) : async Bool { // <-- Parameter ID menjadi Text
-        let skillsById = switch (Map.get(skillsByPrincipal, phash, caller)) {
+    public shared ({ caller }) func clientDeleteSkillById(id: Text) : async Bool {
+        // Debug.print("Motoko: Attempting to delete skill with ID: " # id); // Uncomment jika ingin logging
+
+        let skillsById = switch (Map.get(skillsByPrincipal, Map.phash, caller)) {
             case (?val) val;
-            case null return false;
+            case null {
+                // Debug.print("Motoko: No skills map found for caller " # Principal.toText(caller) # "."); // Uncomment jika ingin logging
+                return false;
+            };
         };
 
         return switch (Map.remove(skillsById, thash, id)) { // <-- Gunakan thash di sini
-            case (?_) true;
-            case null false;
+            case (?_) {
+                // Debug.print("Motoko: Skill " # id # " successfully removed for caller " # Principal.toText(caller) # "."); // Uncomment jika ingin logging
+                true;
+            };
+            case null {
+                // Debug.print("Motoko: Skill " # id # " not found in map for caller " # Principal.toText(caller) # "."); // Uncomment jika ingin logging
+                false;
+            };
         };
     };
 
     // Fungsi untuk mendapatkan semua skills dari client tertentu
     public shared query ({ caller = _ }) func getAllSkillsByClient(client: Principal) : async [Type.Skill] {
-        switch (Map.get(skillsByPrincipal, phash, client)) {
+        switch (Map.get(skillsByPrincipal, Map.phash, client)) {
             case (?skillsById) {
-                return Iter.toArray(Map.vals(skillsById));
+                return Iter.toArray(Map.vals(skillsById)); // <-- Gunakan Map.vals
             };
             case null {
                 return [];
