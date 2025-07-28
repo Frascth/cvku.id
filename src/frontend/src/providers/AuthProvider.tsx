@@ -19,10 +19,19 @@ const LOCAL_INTERNET_IDENTITY_CANISTER_ID = process.env.CANISTER_ID_INTERNET_IDE
 let identityProvider = 'https://identity.ic0.app'; // Default: Mainnet Identity
 
 if (network === 'playground') {
+<<<<<<< HEAD
   identityProvider = 'https://identity.internetcomputer.org'; // Playground Identity (biasanya sama dengan mainnet atau spesifik)
 } else if (network === 'local') {
   // Gunakan ID Internet Identity lokal yang benar
   identityProvider = `http://${LOCAL_INTERNET_IDENTITY_CANISTER_ID}.localhost:4943`;
+=======
+  identityProvider = 'https://identity.internetcomputer.org' // Playground (DFINITY's testnet)
+}
+
+if (network === 'local') {
+  const iiCanisterId = process.env.CANISTER_ID_INTERNET_IDENTITY_SERVICE;
+  identityProvider = `http://${iiCanisterId}.localhost:4943`; // Local
+>>>>>>> d33102fd76d75b2801e8981a1f4d75a1e01734c8
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
