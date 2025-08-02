@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { AuthClient } from '@dfinity/auth-client';
-import { ActorSubclass, HttpAgent } from '@dfinity/agent';
-import { Principal } from '@dfinity/principal';
+// import { ActorSubclass, HttpAgent } from '@dfinity/agent';
+// import { Principal } from '@dfinity/principal';
 import { toast } from 'sonner';
 import { createCertificationHandler } from '../lib/certificationHandler';
 import { createSkillsHandler } from '../lib/skillsHandler'; // Pastikan ini terimpor
@@ -136,11 +136,6 @@ const initialResumeData: ResumeData = {
   education: [
   ],
   skills: [
-    { id: '1', name: 'JavaScript', level: 'Expert' },
-    { id: '2', name: 'React', level: 'Expert' },
-    { id: '3', name: 'Node.js', level: 'Advanced' },
-    { id: '4', name: 'TypeScript', level: 'Advanced' },
-    { id: '5', name: 'Python', level: 'Intermediate' },
   ],
   certifications: [
   ],

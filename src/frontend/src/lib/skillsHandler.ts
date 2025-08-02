@@ -33,24 +33,33 @@ export function createSkillsHandler(authClient: AuthClient) {
   // --- Helper Converters ---
 
   // Helper: Mengonversi tipe dari Backend (raw) ke Frontend
-  const toFrontendSkill = (backendSkill: BackendSkillRaw): Skill => ({
+const toFrontendSkill = (backendSkill: BackendSkillRaw): Skill => {
+  // Ambil key pertama dari objek variant, yang merupakan nama levelnya
+  const levelString = Object.keys(backendSkill.level)[0];
+
+  return {
     id: backendSkill.id,
     name: backendSkill.name,
-    level: backendSkill.level as SkillLevel, // Type assertion agar cocok
-  });
+    // Pastikan hasilnya sesuai dengan tipe SkillLevel di frontend
+    level: levelString as SkillLevel, 
+  };
+};
 
   // Helper: Mengonversi tipe dari Frontend ke Backend (raw)
-  const toBackendSkillRaw = (frontendSkill: Skill): BackendSkillRaw => ({
-    id: frontendSkill.id,
-    name: frontendSkill.name,
-    level: frontendSkill.level as BackendSkillLevelRaw, // Type assertion
-  });
+  // Helper: Mengonversi tipe dari Frontend ke Backend (raw)
+const toBackendSkillRaw = (frontendSkill: Skill): BackendSkillRaw => ({
+  id: frontendSkill.id,
+  name: frontendSkill.name,
+  // [FIXED] Lakukan transformasi data, bukan hanya type assertion
+  level: { [frontendSkill.level]: null } as BackendSkillLevelRaw,
+});
 
   // Helper: Mengonversi tipe dari Frontend untuk request Add ke Backend
-  const toBackendAddRequest = (frontendSkillData: Omit<Skill, 'id'>): AddSkillBackendRequest => ({
-    name: frontendSkillData.name,
-    level: frontendSkillData.level as BackendSkillLevelRaw, // Type assertion
-  });
+const toBackendAddRequest = (frontendSkillData: Omit<Skill, 'id'>): AddSkillBackendRequest => ({
+  name: frontendSkillData.name,
+  // [FIXED] Lakukan transformasi data, bukan hanya type assertion
+  level: { [frontendSkillData.level]: null } as BackendSkillLevelRaw,
+});
 
   // --- Public Functions ---
 
