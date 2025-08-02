@@ -36,6 +36,10 @@
       "type": "motoko",
       "main": "src/education_service/main.mo"
     },
+       "personalinfo_service": {
+      "type": "motoko",
+      "main": "src/personalinfo_service/main.mo"
+    },
 
     "certification_service": {
       "type": "motoko",

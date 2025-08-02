@@ -51,7 +51,7 @@ module {
     location : Text;
     website : Text;
     bio : Text;
-    photoUrl : ?Text;
+    photoUrl : Text;
   };
 
   public type WorkExperience = {
@@ -87,7 +87,7 @@ module {
   };
 
   public type CustomSectionItem = {
-    id : Text;
+    id : Nat;
     title : Text;
     subtitle : ?Text;
     description : Text;
@@ -137,4 +137,4 @@ module {
     socialLinks : [SocialLink];
     customSections : [CustomSection];
   };
-}
+};
