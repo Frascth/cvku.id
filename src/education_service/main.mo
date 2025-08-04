@@ -7,10 +7,10 @@ import { nhash } "mo:map/Map";
 import LLM "mo:llm";
 import Type "../shared/Type";
 
-actor {
-    private stable var eduByPrincipal = Map.new<Principal, Map.Map<Nat, Type.Education>>();
+persistent actor EducationService {
+    private var eduByPrincipal = Map.new<Principal, Map.Map<Nat, Type.Education>>();
 
-    private stable var nextId: Nat = 0;
+    private var nextId: Nat = 0;
 
     public shared query ({ caller }) func clientGetAll() : async [Type.Education] {
         switch (Map.get(eduByPrincipal, Map.phash, caller)) {

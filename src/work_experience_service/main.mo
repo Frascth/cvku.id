@@ -8,11 +8,11 @@ import { nhash } "mo:map/Map";
 import LLM "mo:llm";
 import Type "../shared/Type";
 
-actor WorkExperienceService {
+persistent actor WorkExperienceService {
     
-    private stable var workExpByPrincipal = Map.new<Principal, Map.Map<Nat, Type.WorkExperience>>();
+    private var workExpByPrincipal = Map.new<Principal, Map.Map<Nat, Type.WorkExperience>>();
 
-    private stable var nextId: Nat = 0;
+    private var nextId: Nat = 0;
 
     public shared query ({ caller }) func clientGetAll() : async [Type.WorkExperience] {
         switch (Map.get(workExpByPrincipal, Map.phash, caller)) {
