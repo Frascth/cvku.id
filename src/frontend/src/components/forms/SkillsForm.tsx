@@ -77,26 +77,38 @@ export const SkillsForm: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {resumeData.skills.map((skill) => (
-            <Badge
-              key={skill.id}
-              variant="outline"
-              className={`${getSkillLevelColor(skill.level)} flex items-center space-x-1 px-3 py-1.5`}
-            >
-              <span>{skill.name}</span>
-              {/* Jika SkillLevel adalah string, ini seharusnya tidak masalah */}
-              <span className="text-xs">({skill.level})</span>
-              <button
-                onClick={() => removeSkill(skill.id)} // removeSkill sudah async di useResumeStore
-                className="ml-1 hover:text-red-600"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
+        {/* --- LAKUKAN PERBAIKAN DI SINI --- */}
 
+        {/* 1. Tampilkan daftar skill HANYA JIKA array tidak kosong */}
+        {resumeData.skills.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {resumeData.skills.map((skill) => (
+              <Badge
+                key={skill.id}
+                variant="outline"
+                className={`${getSkillLevelColor(skill.level)} flex items-center space-x-1 px-3 py-1.5`}
+              >
+                <span>{skill.name}</span>
+                <span className="text-xs">({skill.level})</span>
+                <button
+                  onClick={() => removeSkill(skill.id)}
+                  className="ml-1 hover:text-red-600"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* 2. Tampilkan pesan placeholder HANYA JIKA array kosong DAN form 'Add' tidak sedang ditampilkan */}
+        {resumeData.skills.length === 0 && !showAddForm && (
+          <p className="text-center text-gray-500 py-4">
+            No skills added yet. Click "Add" to start.
+          </p>
+        )}
+
+        {/* 3. Tampilkan form untuk menambah skill (logika ini sudah ada dan benar) */}
         {showAddForm && (
           <AddSkillForm
             onAdd={handleAdd}
