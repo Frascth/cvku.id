@@ -51,6 +51,11 @@
       "main": "src/skills_service/main.mo"
     },
 
+    "custom_section_service": { 
+      "type": "motoko",
+      "main": "src/custom_section_service/main.mo"
+    },
+
     "frontend": {
       "type": "assets",
       "source": [
@@ -62,7 +67,8 @@
         "work_experience_service",
         "education_service",
         "certification_service",
-        "skills_service"
+        "skills_service",
+        "custom_section_service"
       ]
     }
   },

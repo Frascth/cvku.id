@@ -1,4 +1,5 @@
 import Text "mo:base/Text";
+import Result "mo:base/Result";
 
 module {
   // one to one
@@ -37,7 +38,21 @@ module {
   public type Role = Text;
 
   public let ROLE_CLIENT : Role = "client";
+
   public let ROLE_ADMIN : Role = "admin";
+  
+  public type SuccessResponse<T> = {
+    data: T;
+    message : Text;
+  };
+
+  public type ErrorResponse = {
+    message : Text;
+  };
+
+  // https://internetcomputer.org/docs/motoko/base/Result
+  // example of usage in src/custom_section_service/main.mo
+  public type Response<T> = Result.Result<SuccessResponse<T>, ErrorResponse>;
 
   public type PersonalInfo = {
     fullName : Text;
@@ -90,9 +105,8 @@ module {
   };
 
   public type CustomSection = {
-    id : Text;
+    id : Nat;
     name : Text;
-    items : [CustomSectionItem];
   };
 
   public type CoverLetterBuilder = {
