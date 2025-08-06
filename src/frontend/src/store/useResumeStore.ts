@@ -104,6 +104,7 @@ export interface ResumeStore {
   removeCertification: (id: string) => Promise<void>;
   // --- Akhir Penambahan ---
   updatePersonalInfo: (info: Partial<PersonalInfo>) => void;
+  resetPersonalInfo: () => void;
   setWorkExperience: (experiences: WorkExperience[]) => void;
   addWorkExperience: (experience: WorkExperience) => void;
   updateWorkExperience: (id: string, experience: Partial<WorkExperience>) => void;
@@ -305,6 +306,25 @@ export const useResumeStore = create<ResumeStore>()(
         personalInfo: { ...state.resumeData.personalInfo, ...info },
       },
     })),
+
+    resetPersonalInfo:() => {
+      const emptyPersonalInfo : PersonalInfo = {
+        fullName: '',
+        email: '',
+        phone: '',
+        location: '',
+        website: '',
+        bio: '',
+        photoUrl: '',
+      };
+
+      set((state) => ({
+          resumeData: {
+          ...state.resumeData,
+          personalInfo: emptyPersonalInfo,
+        },
+      }));
+    },
 
   setWorkExperience: (experiences) =>
     set((state) => ({

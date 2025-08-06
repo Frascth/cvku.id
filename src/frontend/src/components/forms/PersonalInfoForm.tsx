@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { createPersonalInfoHandler } from '@/lib/personalInfoHandler';
 
 export const PersonalInfoForm: React.FC = () => {
-  const { resumeData, updatePersonalInfo } = useResumeStore();
+  const { resumeData, resetPersonalInfo, updatePersonalInfo } = useResumeStore();
   const { personalInfo } = resumeData;
   const { toast } = useToast();
   const { authClient } = useAuth();
@@ -28,6 +28,8 @@ export const PersonalInfoForm: React.FC = () => {
   useEffect(() => {
     const fetchPersonalInfo = async () => {
       try {
+        resetPersonalInfo();
+
         const personalInfo = await personalInfoHandler.clientGet();
 
         updatePersonalInfo(personalInfo);
@@ -39,7 +41,7 @@ export const PersonalInfoForm: React.FC = () => {
     if (personalInfoHandler) {
       fetchPersonalInfo();
     }
-  }, [personalInfoHandler, updatePersonalInfo]);
+  }, [personalInfoHandler, resetPersonalInfo, updatePersonalInfo]);
 
   const handleSave = async () => {
     try {
