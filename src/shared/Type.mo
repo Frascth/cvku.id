@@ -122,6 +122,22 @@ module {
     link : Text;
   };
 
+  public type ATSCheck = {
+    name : Text;
+    passed : Bool;
+    tip : Text;
+  };
+
+  public type ATSCategory = {
+    category : Text;
+    checks : [ATSCheck];
+  };
+
+  public type ATSReport = {
+    score : Nat;
+    categories : [ATSCategory];
+  };
+
   // resume_service/main.mo assemble all
   public type Resume = {
     personalInfo : PersonalInfo;
@@ -132,4 +148,4 @@ module {
     socialLinks : [SocialLink];
     customSections : [CustomSection];
   };
-}
+};
