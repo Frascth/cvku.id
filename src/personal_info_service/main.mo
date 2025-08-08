@@ -3,9 +3,9 @@ import Principal "mo:base/Principal";
 import Text "mo:base/Text";
 import Type "../shared/Type";
 
-actor PersonalInfoService {
+persistent actor PersonalInfoService {
     
-    private stable var personalInfoByPrincipal = Map.new<Principal, Type.PersonalInfo>();
+    private var personalInfoByPrincipal = Map.new<Principal, Type.PersonalInfo>();
 
     public shared query ({ caller }) func clientGet() : async ?Type.PersonalInfo {
         return Map.get(personalInfoByPrincipal, Map.phash, caller);
