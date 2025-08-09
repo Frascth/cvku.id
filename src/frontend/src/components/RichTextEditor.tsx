@@ -106,6 +106,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         ref={editorRef}
         contentEditable
         onInput={handleInput}
+        dangerouslySetInnerHTML={{ __html: value }}
         className="p-3 min-h-[100px] outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
         style={{ whiteSpace: 'pre-wrap' }}
         data-placeholder={placeholder}
