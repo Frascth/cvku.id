@@ -56,6 +56,11 @@
       "main": "src/custom_section_service/main.mo"
     },
 
+    "ats_service": {
+      "type": "motoko",
+      "main": "src/ats_service/main.mo"
+    },
+
     "frontend": {
       "type": "assets",
       "source": [
@@ -68,7 +73,8 @@
         "education_service",
         "certification_service",
         "skills_service",
-        "custom_section_service"
+        "custom_section_service",
+        "ats_service"
       ]
     }
   },

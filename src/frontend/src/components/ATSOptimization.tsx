@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CheckCircle, XCircle, AlertCircle, Target, FileText, Zap } from 'lucide-react';
 import { useResumeStore } from '../store/useResumeStore';
 import { useToast } from '@/hooks/use-toast';
+import { analyzeResumeATS } from "@/lib/atsHandler";
 
 export const ATSOptimization: React.FC = () => {
   const { resumeData } = useResumeStore();
@@ -17,14 +18,26 @@ export const ATSOptimization: React.FC = () => {
 
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
-    // Simulate ATS analysis
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setAtsScore(Math.floor(Math.random() * 30) + 70);
+    try {
+      const atsResult = await analyzeResumeATS(resumeData);
+
+      // Misal atsResult bentuknya { score: number, checks: AtsCheck[] }
+      setAtsScore(Number(atsResult.score));
+      // kalau checks juga mau diupdate:
+      // setAtsChecks(atsResult.checks);
+
+      toast({
+        title: "ATS Analysis Complete",
+        description: "Your resume has been analyzed for ATS compatibility.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to analyze resume.",
+        variant: "destructive",
+      });
+    }
     setIsAnalyzing(false);
-    toast({
-      title: "ATS Analysis Complete",
-      description: "Your resume has been analyzed for ATS compatibility.",
-    });
   };
 
   const atsChecks = [
@@ -95,11 +108,11 @@ export const ATSOptimization: React.FC = () => {
                   {getScoreLabel(atsScore)}
                 </div>
               </div>
-              
+
               <Progress value={atsScore} className="w-full" />
-              
-              <Button 
-                onClick={handleAnalyze} 
+
+              <Button
+                onClick={handleAnalyze}
                 disabled={isAnalyzing}
                 className="w-full"
               >
