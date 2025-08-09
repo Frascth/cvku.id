@@ -18,8 +18,8 @@ export const Header: React.FC = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
-            <FileText className="w-8 h-8 text-primary" />
-            <img src={"./logo-full.jpg"} />
+    
+            <img src={"./logo-full.png"} className='w-32' />
           </Link>
           
           <nav className="hidden md:flex items-center space-x-6">

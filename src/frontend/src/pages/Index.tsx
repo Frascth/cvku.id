@@ -85,10 +85,10 @@ const Index = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold">CV</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">CvKu.id</span>
+             
+                <img src={"./logo-full.png"}  className="w-32 h-auto"  />
+           
+           
             </div>
             {isAuthenticated ? (
               <Button onClick={() => navigate('/builder')}>
