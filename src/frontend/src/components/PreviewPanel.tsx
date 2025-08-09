@@ -24,23 +24,8 @@ export const PreviewPanel: React.FC = () => {
   };
 
   return (
-    <Card className="animate-fade-in">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Eye className="w-5 h-5 text-blue-600" />
-          <span>Live Preview</span>
-          <span className="text-sm font-normal text-gray-500 capitalize">
-            ({selectedTemplate} template)
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
-          <div className="transform scale-75 origin-top-left w-[133.33%] h-auto">
-            {renderTemplate()}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      {renderTemplate()}
+    </div>
   );
 };

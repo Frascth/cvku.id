@@ -13,10 +13,10 @@ import { useAuth } from '@/hooks/use-auth';
 import { createPersonalInfoHandler } from '@/lib/personalInfoHandler';
 
 export const PersonalInfoForm: React.FC = () => {
-  const { resumeData, resetPersonalInfo, updatePersonalInfo } = useResumeStore();
+    const { resumeData, resetPersonalInfo, updatePersonalInfo } = useResumeStore();
   const { personalInfo } = resumeData;
   const { toast } = useToast();
-  const { authClient } = useAuth();
+    const { authClient } = useAuth();
 
   const personalInfoHandler = useMemo(() => {
     if (authClient) {
@@ -48,8 +48,8 @@ export const PersonalInfoForm: React.FC = () => {
       const isMandatoryFilled = !!(personalInfo.bio && personalInfo.email && personalInfo.fullName && personalInfo.location && personalInfo.phone && personalInfo.website);
 
       if (!isMandatoryFilled) {
-        toast({
-          title: "All field must be filled",
+    toast({
+               title: "All field must be filled",
           description: "All field must be filled",
           variant: "destructive",
         });
@@ -61,8 +61,9 @@ export const PersonalInfoForm: React.FC = () => {
 
       toast({
         title: "Personal info saved",
-      });
-    } catch (error) {
+      description: "Education information has been saved successfully.",
+    });
+      } catch (error) {
       console.error(error);
 
       toast({
@@ -71,7 +72,7 @@ export const PersonalInfoForm: React.FC = () => {
         variant: "destructive",
       });
     }
-  };
+};
 
   return (
     <Card>
