@@ -135,7 +135,6 @@ export const WorkExperienceForm: React.FC = () => {
       });
 
       return "";
-    } finally {
     }
 
   };

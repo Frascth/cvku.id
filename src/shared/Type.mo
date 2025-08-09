@@ -40,6 +40,19 @@ module {
   public let ROLE_CLIENT : Role = "client";
 
   public let ROLE_ADMIN : Role = "admin";
+
+  public type CreatedResponse = {
+    lid:Text;
+    id:Nat
+  };
+
+  public type UpdatedResponse = {
+    id:Nat
+  };
+
+  public type DeletedResponse = {
+    id:Nat
+  };
   
   public type SuccessResponse<T> = {
     data: T;
@@ -97,16 +110,18 @@ module {
   };
 
   public type CustomSectionItem = {
-    id : Text;
+    sectionId : Nat;
+    id : Nat;
     title : Text;
-    subtitle : ?Text;
     description : Text;
+    subtitle : ?Text;
     date : ?Text;
   };
 
   public type CustomSection = {
     id : Nat;
     name : Text;
+    items: [CustomSectionItem];
   };
 
   public type CoverLetterBuilder = {

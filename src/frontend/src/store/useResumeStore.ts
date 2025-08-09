@@ -58,7 +58,9 @@ export interface SocialLink {
 }
 
 export interface CustomSectionItem {
+  lid?: string, // local id for optimistic update
   id: string;
+  sectionId: string;
   title: string;
   subtitle?: string;
   description: string;
@@ -66,6 +68,7 @@ export interface CustomSectionItem {
 }
 
 export interface CustomSection {
+  lid?: string, // local id for optimistic update
   id: string;
   name: string;
   items: CustomSectionItem[];
@@ -116,9 +119,13 @@ export interface ResumeStore {
   addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => void;
   updateSocialLink: (id: string, socialLink: Partial<SocialLink>) => void;
   removeSocialLink: (id: string) => void;
+  setCustomSection: (params: { sections: CustomSection[] }) => void;
   addCustomSection: (section: Omit<CustomSection, 'id'>) => void;
+  updateCustomSectionId: (lid: string, id: string) => void;
   updateCustomSection: (id: string, section: Partial<CustomSection>) => void;
   removeCustomSection: (id: string) => void;
+  addCustomSectionItem: (item:CustomSectionItem) => void;
+  updateCustomSectionItemId: (params: {sectionId: string, lid: string, newId: string}) => void;
   setTemplate: (template: 'minimal' | 'modern' | 'professional') => void;
   setPrivacy: (isPrivate: boolean) => void;
 }
@@ -483,14 +490,38 @@ export const useResumeStore = create<ResumeStore>()(
       },
     })),
 
+  setCustomSection: ({ sections }) => {
+    set((state) => {
+
+      return {
+        resumeData: {
+          ...state.resumeData,
+          customSections : sections
+        }
+      }
+
+    });
+  },
+
   addCustomSection: (section) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
         customSections: [
           ...state.resumeData.customSections,
-          { ...section, id: Date.now().toString() },
+          { ...section, id: crypto.randomUUID() },
         ],
+      },
+    })),
+    
+
+  updateCustomSectionId: (lid, newId) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        customSections: state.resumeData.customSections.map((section) =>
+          section.lid === lid ? { ...section, id: newId } : section
+        ),
       },
     })),
 
@@ -511,6 +542,79 @@ export const useResumeStore = create<ResumeStore>()(
         customSections: state.resumeData.customSections.filter((s) => s.id !== id),
       },
     })),
+
+  addCustomSectionItem: (item) => {
+    set((state) => {
+
+      const sectionIndex = state.resumeData.customSections.findIndex((section) => section.id === item.sectionId);
+
+      if (sectionIndex === -1) {
+        throw new Error(`Custom section with id "${item.sectionId}" not found.`);
+      }
+
+      const section = state.resumeData.customSections[sectionIndex];
+
+      const updatedItems = [...section.items, item];
+
+      const updatedSection = {
+        ...section,
+        items: updatedItems,
+      };
+
+      const updatedSections = [...state.resumeData.customSections];
+
+      updatedSections[sectionIndex] = updatedSection;
+
+      return {
+        resumeData: {
+          ...state.resumeData,
+          customSections: updatedSections
+        },
+      };
+    });
+  },
+
+  updateCustomSectionItemId: ({ sectionId, lid, newId}) => {
+    set((state) => {
+
+      const sectionIndex = state.resumeData.customSections.findIndex((section) => section.id === sectionId);
+
+      if (sectionIndex === -1) {
+        throw new Error(`Custom section with id "${sectionId}" not found.`);
+      }
+
+      const section = state.resumeData.customSections[sectionIndex];
+
+      const itemIndex = section.items.findIndex((item) => item.lid === lid);
+
+      if (itemIndex === -1) {
+        throw new Error(`Item with id "${itemIndex}" not found.`);
+      }
+
+      const updatedItems = [...section.items];
+
+      updatedItems[itemIndex] = {
+        ...updatedItems[itemIndex],
+        id: newId
+      };
+
+      const updatedSection = {
+        ...section,
+        items: updatedItems,
+      };
+
+      const updatedSections = [...state.resumeData.customSections];
+
+      updatedSections[sectionIndex] = updatedSection;
+
+      return {
+        resumeData: {
+          ...state.resumeData,
+          customSections: updatedSections
+        },
+      };
+    });
+  },
 
   setTemplate: (template) => set({ selectedTemplate: template }),
   setPrivacy: (isPrivate) => set({ isPrivate }),

@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bold, Italic, List, ListOrdered, Undo, Redo } from 'lucide-react';
 
@@ -36,6 +36,12 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     div.innerHTML = html;
     return div.textContent || div.innerText || '';
   };
+
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value;
+    }
+  }, [value]);
 
   return (
     <div className={`border rounded-lg ${className}`}>
@@ -100,7 +106,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         ref={editorRef}
         contentEditable
         onInput={handleInput}
-        dangerouslySetInnerHTML={{ __html: value }}
         className="p-3 min-h-[100px] outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
         style={{ whiteSpace: 'pre-wrap' }}
         data-placeholder={placeholder}
