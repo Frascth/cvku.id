@@ -61,10 +61,14 @@ const SignIn = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          
-            <img src={"./logo-full.png"} />
 
-          <CardTitle className="text-2xl font-bold">Sign In to CvKu.id</CardTitle>
+          <img
+            src="./logo-full.png"
+            alt="CvKu.id Logo"
+            className="mx-auto mb-4 w-40 h-auto object-contain"
+          />
+
+          <CardTitle className="text-xl font-bold">Sign In to CvKu.id</CardTitle>
           <p className="text-gray-600">Welcome back! Please sign in to continue.</p>
         </CardHeader>
         <CardContent>
@@ -121,8 +125,8 @@ const SignIn = () => {
                 </div>
               )}
             </Button> */}
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             >
               <div className="flex items-center space-x-2">
