@@ -67,9 +67,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("AuthClient not initialized.");
       return;
     }
+
+    const width = 700;
+    const height = 640;
+
+    const left = window.screenX + (window.innerWidth - width) / 2;
+    const top = window.screenY + (window.innerHeight - height) / 2;
+
     await authClient.login({
       identityProvider, // <-- DI SINI identityProvider global akan digunakan
+      windowOpenerFeatures: `toolbar=0,location=0,menubar=0,width=${width},height=${height},left=${left},top=${top}`,
       onSuccess: updateAuth,
+      maxTimeToLive: BigInt (7) * BigInt(24) * BigInt(3_600_000_000_000) // 1 week
       // Opsi tambahan untuk login pop-up, sesuaikan jika perlu
       // maxTimeToLive: BigInt(7 * 24 * 60 * 60 * 1_000_000_000), // 7 days
       // windowOpenerFeatures: `width=500,height=500,toolbar=0,location=0,menubar=0,status=0`,
