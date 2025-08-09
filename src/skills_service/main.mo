@@ -11,13 +11,13 @@ import { thash } "mo:map/Map"; // <-- PENTING: Untuk Text hash
 
 import Type "../shared/Type";
 
-actor SkillsService {
+persistent actor SkillsService {
     // State untuk menyimpan skills per principal
     // Kunci inner Map sekarang adalah Text, sesuai dengan Skill.id
     // Gunakan Map.Map untuk inner Map, sama seperti WorkExperienceService
-    private stable var skillsByPrincipal = Map.new<Principal, Map.Map<Text, Type.Skill>>(); // <-- Kembali ke Map.Map untuk inner
+    private var skillsByPrincipal = Map.new<Principal, Map.Map<Text, Type.Skill>>(); // <-- Kembali ke Map.Map untuk inner
 
-    private stable var nextSkillIdNum: Nat = 0; // Menggunakan nama berbeda untuk counter Nat
+    private var nextSkillIdNum: Nat = 0; // Menggunakan nama berbeda untuk counter Nat
 
     // Fungsi helper untuk menghasilkan ID unik (Text)
     func generateSkillId() : Text {

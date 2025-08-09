@@ -10,13 +10,13 @@ import Text "mo:base/Text";
 // Import semua tipe dari shared/Type.mo
 import Type "../shared/Type";
 
-actor CertificationService {
+persistent actor CertificationService {
     // Map data sertifikasi per Principal (pengguna)
     // Map<Principal, Map<Text, Type.Certification>> <-- Kunci Map sekarang Text
-    private stable var certificationByPrincipal = Map.new<Principal, Map.Map<Text, Type.Certification>>();
+    private var certificationByPrincipal = Map.new<Principal, Map.Map<Text, Type.Certification>>();
 
     // ID unik untuk setiap entri sertifikasi di seluruh canister (masih Nat untuk auto-increment)
-    private stable var nextId: Nat = 0;
+    private var nextId: Nat = 0;
 
     // --- Fungsi Klien (Untuk Pengguna Langsung) ---
 
