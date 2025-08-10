@@ -1,22 +1,22 @@
-
-import React, { useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Save, User } from 'lucide-react';
-import { useResumeStore } from '../../store/useResumeStore';
-import { PhotoUpload } from '../PhotoUpload';
-import { Button } from '../ui/button';
+import React, { useEffect, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Save, User } from "lucide-react";
+import { useResumeStore } from "../../store/useResumeStore";
+import { PhotoUpload } from "../PhotoUpload";
+import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from '@/hooks/use-auth';
-import { createPersonalInfoHandler } from '@/lib/personalInfoHandler';
+import { useAuth } from "@/hooks/use-auth";
+import { createPersonalInfoHandler } from "@/lib/personalInfoHandler";
 
 export const PersonalInfoForm: React.FC = () => {
-    const { resumeData, resetPersonalInfo, updatePersonalInfo } = useResumeStore();
+  const { resumeData, resetPersonalInfo, updatePersonalInfo } =
+    useResumeStore();
   const { personalInfo } = resumeData;
   const { toast } = useToast();
-    const { authClient } = useAuth();
+  const { authClient } = useAuth();
 
   const personalInfoHandler = useMemo(() => {
     if (authClient) {
@@ -45,11 +45,18 @@ export const PersonalInfoForm: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const isMandatoryFilled = !!(personalInfo.bio && personalInfo.email && personalInfo.fullName && personalInfo.location && personalInfo.phone && personalInfo.website);
+      const isMandatoryFilled = !!(
+        personalInfo.bio &&
+        personalInfo.email &&
+        personalInfo.fullName &&
+        personalInfo.location &&
+        personalInfo.phone &&
+        personalInfo.website
+      );
 
       if (!isMandatoryFilled) {
-    toast({
-               title: "All field must be filled",
+        toast({
+          title: "All field must be filled",
           description: "All field must be filled",
           variant: "destructive",
         });
@@ -61,9 +68,9 @@ export const PersonalInfoForm: React.FC = () => {
 
       toast({
         title: "Personal info saved",
-      description: "Education information has been saved successfully.",
-    });
-      } catch (error) {
+        description: "Education information has been saved successfully.",
+      });
+    } catch (error) {
       console.error(error);
 
       toast({
@@ -72,7 +79,7 @@ export const PersonalInfoForm: React.FC = () => {
         variant: "destructive",
       });
     }
-};
+  };
 
   return (
     <Card>
