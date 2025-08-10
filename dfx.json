@@ -28,6 +28,10 @@
       "type": "motoko",
       "main": "src/auth_service/main.mo"
     },
+    "resume_service": {
+      "type": "motoko",
+      "main": "src/resume_service/main.mo"
+    },
     "personal_info_service": {
       "type": "motoko",
       "main": "src/personal_info_service/main.mo"
@@ -80,7 +84,8 @@
         "skills_service",
         "custom_section_service",
         "ats_service",
-        "social_service"
+        "social_service",
+        "resume_service"
       ]
     }
   },
