@@ -141,7 +141,7 @@ module {
   };
 
   public type SocialLink = {
-    id : Text;
+    id : Nat;
     platform : Text;
     url : Text;
   };

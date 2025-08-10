@@ -6,6 +6,7 @@ import { AuthClient } from '@dfinity/auth-client';
 import { toast } from 'sonner';
 import { createCertificationHandler } from '../lib/certificationHandler';
 import { createSkillsHandler } from '../lib/skillsHandler'; // Pastikan ini terimpor
+import { isValidUrl } from '@/lib/utils';
 
 export type SkillLevel = string;
 
@@ -52,6 +53,7 @@ export interface Certification {
 }
 
 export interface SocialLink {
+  lid?: string; // local id for optimistic update
   id: string;
   platform: string;
   url: string;
@@ -117,7 +119,9 @@ export interface ResumeStore {
   updateEducation: (id: string, education: Partial<Education>) => void;
   removeEducation: (id: string) => void;
   addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => void;
+  setSocialLink: (params: {socialLinks : SocialLink[]}) => void;
   updateSocialLink: (id: string, socialLink: Partial<SocialLink>) => void;
+  updateSocialLinkId: (params : { lid: string, id: string }) => void;
   removeSocialLink: (id: string) => void;
   setCustomSection: (params: { sections: CustomSection[] }) => void;
   addCustomSection: (section: Omit<CustomSection, 'id'>) => void;
@@ -148,16 +152,6 @@ const initialResumeData: ResumeData = {
   certifications: [
   ],
   socialLinks: [
-    {
-      id: '1',
-      platform: 'LinkedIn',
-      url: 'https://linkedin.com/in/johndoe',
-    },
-    {
-      id: '2',
-      platform: 'GitHub',
-      url: 'https://github.com/johndoe',
-    },
   ],
   customSections: [],
 };
@@ -462,13 +456,29 @@ export const useResumeStore = create<ResumeStore>()(
   },
 
   addSocialLink: (socialLink) =>
+    set((state) => {
+
+      if (! isValidUrl(socialLink.url)) {
+        throw new Error(`Please provide a valid url`);
+      }
+
+      return {
+        resumeData: {
+          ...state.resumeData,
+          socialLinks: [
+            ...state.resumeData.socialLinks,
+            { ...socialLink, id: crypto.randomUUID() },
+          ],
+        },
+      }
+
+    }),
+
+  setSocialLink: ({socialLinks}) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
-        socialLinks: [
-          ...state.resumeData.socialLinks,
-          { ...socialLink, id: Date.now().toString() },
-        ],
+        socialLinks: socialLinks
       },
     })),
 
@@ -478,6 +488,16 @@ export const useResumeStore = create<ResumeStore>()(
         ...state.resumeData,
         socialLinks: state.resumeData.socialLinks.map((link) =>
           link.id === id ? { ...link, ...socialLink } : link
+        ),
+      },
+    })),
+
+  updateSocialLinkId: ({ lid, id }) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        socialLinks: state.resumeData.socialLinks.map((link) =>
+          link.lid === lid ? { ...link, id: id } : link
         ),
       },
     })),
