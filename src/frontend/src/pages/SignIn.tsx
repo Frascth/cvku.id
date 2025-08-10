@@ -62,13 +62,15 @@ const SignIn = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
 
-          <img
-            src="./logo-full.png"
-            alt="CvKu.id Logo"
-            className="mx-auto mb-4 w-40 h-auto object-contain"
-          />
+          <div className="flex justify-center items-center h-full">
+            <img
+              src="./logo-full-no-bg-centered.png"
+              alt="CvKu.id Logo"
+              className="w-40 h-auto object-contain"
+            />
+          </div>
 
-          <CardTitle className="text-xl font-bold">Sign In to CvKu.id</CardTitle>
+          <CardTitle className="text-lg font-bold">Sign In to CvKu.id</CardTitle>
           <p className="text-gray-600">Welcome back! Please sign in to continue.</p>
         </CardHeader>
         <CardContent>
