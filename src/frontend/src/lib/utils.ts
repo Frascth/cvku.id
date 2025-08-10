@@ -12,3 +12,14 @@ export function cn(...inputs: ClassValue[]) {
 export function isBackendId(id: string): boolean {
   return /^\d+$/.test(id);
 }
+
+export function isValidUrl(url:string):boolean {
+  try {
+    new URL(url);
+
+    return true;
+    
+  } catch (error) {
+    return false;
+  }
+}
