@@ -11,16 +11,34 @@ import { Eye, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { useToast } from '@/hooks/use-toast';
 
 const Builder = () => {
-  const { resumeData } = useResumeStore();
+
+  const { resumeData, isPersonalInfoFilled } = useResumeStore();
+
   const [showLinkModal, setShowLinkModal] = useState(false);
+
   const { isAuthenticated } = useAuth();
   
   const navigate = useNavigate();
 
+  const { toast } = useToast();
+
   const handleGenerateLink = () => {
-    setShowLinkModal(true);
+    try {
+      if (! isPersonalInfoFilled()) {
+        throw new Error("Fill your personal info");
+      }
+
+      setShowLinkModal(true);
+    } catch (error) {
+      toast({
+        title: "Validation Error",
+        description: error.message ?? "Something went wrong with the custom section service.",
+        variant: "destructive",
+      });
+    }
   };
 
   useEffect(() => {

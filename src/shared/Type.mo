@@ -1,5 +1,6 @@
 import Text "mo:base/Text";
 import Result "mo:base/Result";
+import Bool "mo:base/Bool";
 
 module {
   // one to one
@@ -146,9 +147,10 @@ module {
     url : Text;
   };
 
-  public type PublicLink = {
+  public type ResumeLink = {
     id : Nat;
-    link : Text;
+    path : Text;
+    isPublic: Bool;
   };
 
   public type ATSCheck = {
