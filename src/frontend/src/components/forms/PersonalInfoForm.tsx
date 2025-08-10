@@ -96,8 +96,8 @@ export const PersonalInfoForm: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="col-span-1 lg:col-span-3">
             <Label>Profile Photo</Label>
             <PhotoUpload
               photoUrl={personalInfo.photoUrl}
@@ -107,7 +107,6 @@ export const PersonalInfoForm: React.FC = () => {
               className="mt-2"
             />
           </div>
-
           <div className="lg:col-span-3 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
