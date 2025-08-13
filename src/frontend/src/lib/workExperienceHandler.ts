@@ -12,50 +12,74 @@ export function createWorkExperienceHandler(authClient: AuthClient) {
 
   return {
 
-    clientGetAll: async ():Promise<WorkExperience[]> => {
-      const exps = await actor.clientGetAll();
+    clientGetAll: async (): Promise<WorkExperience[]> => {
+      const response = await actor.clientGetAll();
 
-      return exps.map(exp => ({
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with work experience service");
+      }
+
+      return response.ok.data.map(exp => ({
         ...exp,
         id: exp.id.toString(),
       }));
     },
 
-    clientAdd: async (data: Omit<WorkExperience, "id">): Promise<WorkExperience> => {
-        const addedExperience = await actor.clientAdd(data);
+    clientAdd: async (lid: string, data: Omit<WorkExperience, "id">): Promise<WorkExperience> => {
+      const request = {
+        lid: lid,
+        ...data,
+      };
 
-        return {
-            ...addedExperience,
-            id: addedExperience.id.toString(),
-        };
+      const response = await actor.clientAdd(request);
+
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with work experience service");
+      }
+
+      return {
+        ...data,
+        id: response.ok.data.id.toString(),
+      };
     },
 
-    clientSave: async (workExps: WorkExperience[]):Promise<WorkExperience[]> => {
-        if (workExps.length <= 0) {
-            return [];
-        }
+    clientSave: async (workExps: WorkExperience[]): Promise<void> => {
+      if (workExps.length <= 0) {
+        return;
+      }
 
-        const newExps = workExps.map(exp => ({
-            ...exp,
-            id: BigInt(exp.id)
-        }));
+      const newExps = workExps.map(exp => ({
+        ...exp,
+        id: BigInt(exp.id)
+      }));
 
-        const result = await actor.clientBatchUpdate(newExps);
+      const response = await actor.clientBatchUpdate(newExps);
 
-        const updatedExps = result.map(exp => ({
-            ...exp,
-            id: exp.id.toString()
-        }));
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with work experience service");
+      }
 
-        return updatedExps;
+      return;
     },
 
-    clientDeleteById: async (id:string):Promise<boolean> => {
-      return await actor.clientDeleteById(BigInt(id));
+    clientDeleteById: async (id: string): Promise<string> => {
+      const response = await actor.clientDeleteById(BigInt(id));
+
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with work experience service");
+      }
+
+      return response.ok.data.id.toString();
     },
 
-    clientGenerateAiDesc: async (jobTitle:string):Promise<string[]> => {
-      return await actor.clientGenerateAiDescription({jobTitle});
+    clientGenerateAiDesc: async (jobTitle: string): Promise<string[]> => {
+      const response = await actor.clientGenerateAiDescription({ jobTitle });
+
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with work experience service");
+      }
+
+      return response.ok.data;
     }
 
   };

@@ -21,6 +21,7 @@ export interface PersonalInfo {
 }
 
 export interface WorkExperience {
+  lid?: string; // local id for optimistic update
   id: string;
   jobTitle: string;
   company: string;
@@ -121,6 +122,7 @@ export interface ResumeStore {
   resetPersonalInfo: () => void;
   setWorkExperience: (experiences: WorkExperience[]) => void;
   addWorkExperience: (experience: WorkExperience) => void;
+  updateWorkExperienceId: (lid: string, id:string) => void;
   updateWorkExperience: (id: string, experience: Partial<WorkExperience>) => void;
   removeWorkExperience: (id: string) => void;
   setEducation: (experiences: Education[]) => void;
@@ -373,6 +375,16 @@ export const useResumeStore = create<ResumeStore>()(
             workExperience: [
               ...state.resumeData.workExperience, experience,
             ],
+          },
+        })),
+
+      updateWorkExperienceId: (lid, id) =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            workExperience: state.resumeData.workExperience.map((exp) =>
+              exp.lid === lid ? { ...exp, id: id } : exp
+            ),
           },
         })),
 
