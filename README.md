@@ -28,7 +28,10 @@ This project addresses common challenges in today's professional world, such as 
 **Analytics Dashboard**
 <img width="1345" height="623" alt="Screenshot From 2025-07-25 17-18-26" src="https://github.com/user-attachments/assets/34367ae8-a2dc-438b-ba8d-e30212764b07" />
 
-**Future Enhancements Underway...**
+**Skill Assessment**
+<img width="1345" height="623" alt="image" src="https://github.com/user-attachments/assets/d235215a-4fae-46a5-b2ec-9ca59c547455" />
+
+**Our Powerfull Features: Skill Assessment, Spark, and Community are Underway...**
 
 # Features
 1. **AI-Powered Resume Builder**: Leverage advanced artificial intelligence to effortlessly generate tailored resume content, transforming your professional experience into compelling narratives that stand out.
@@ -38,11 +41,13 @@ This project addresses common challenges in today's professional world, such as 
 5. **Comprehensive Resume Scoring**: Get an objective evaluation of your resume's strength and competitiveness, identifying areas for improvement to maximize your appeal to recruiters.
 6. **AI Cover Letter Generator**: Craft personalized and impactful cover letters with AI assistance, designed to capture attention and complement your resume for specific job applications.
 7. **Shareable Online Resume**: Easily share a professional, web-based version of your resume with potential employers, recruiters, or your network, expanding your visibility and reach.
-
+8. **Skill Assessment**: Do skill assessment and make your skill verified
+9. **Spark**: A tinder like job connector features for job seekers and recruiters
+10. **Community**: A dedicated forum for recruiters and job seekers to discuss industry trends and career advice.
+   
 # Pitch Deck
-[https://www.canva.com/design/DAGuIP2fstg/_8uQu0DDmuUFiiLwx-AY1w/view
-](https://www.canva.com/design/DAGuIP2fstg/_8uQu0DDmuUFiiLwx-AY1w/view
-)
+[https://www.canva.com/design/DAGuIP2fstg/_8uQu0DDmuUFiiLwx-AY1w/view](https://www.canva.com/design/DAGuIP2fstg/_8uQu0DDmuUFiiLwx-AY1w/view)
+
 # Architecture Description
 1. **Modular/Microservice Architecture**: We've strategically adopted a modular/microservice architecture, where each core feature operates as an independent service. This approach offers significant advantages: individual services scale independently for enhanced scalability, failures are isolated for improved resilience, and teams can develop and deploy features autonomously, leading to faster development cycles. Additionally, it allows for a flexible technology stack by enabling the use of optimal tools for each task, and simplifies maintenance due to smaller, more focused codebases.
 2. **Decentralized AI Computing on the Internet Computer (ICP)**: Our AI-powered features (Resume Builder, ATS Optimization, Resume Scoring, Cover Letter Generator) leverage the Internet Computer's native capabilities for scalable and distributed computing. Use the Internet Computer Protocol (ICP) AI services that are decentralized and transparent, like on-chain AI models or smart agents, ensuring security without middlemen.
