@@ -41,7 +41,7 @@ This project addresses common challenges in today's professional world, such as 
 5. **Comprehensive Resume Scoring**: Get an objective evaluation of your resume's strength and competitiveness, identifying areas for improvement to maximize your appeal to recruiters.
 6. **AI Cover Letter Generator**: Craft personalized and impactful cover letters with AI assistance, designed to capture attention and complement your resume for specific job applications.
 7. **Shareable Online Resume**: Easily share a professional, web-based version of your resume with potential employers, recruiters, or your network, expanding your visibility and reach.
-8. **Skill Assessment**: Do skill assessment and make your skill verified
+8. **Skill Assessment**: Gain a competitive edge by completing a skill assessment to verify your proficiencies.
 9. **Spark**: A tinder like job connector features for job seekers and recruiters
 10. **Community**: A dedicated forum for recruiters and job seekers to discuss industry trends and career advice.
    
