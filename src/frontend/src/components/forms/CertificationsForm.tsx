@@ -194,7 +194,7 @@ export const CertificationsForm: React.FC = () => {
               disabled={isLoading || !isAuthenticated} // Disable jika loading atau tidak login
             >
               <Save className="w-4 h-4" />
-              <span>Save All</span>
+              <span>Save </span>
             </Button>
             <Button
               onClick={() => setShowAddForm(true)}

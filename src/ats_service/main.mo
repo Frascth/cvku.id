@@ -5,135 +5,117 @@ import Text "mo:base/Text";
 import Bool "mo:base/Bool";
 import Array "mo:base/Array";
 import Char "mo:base/Char";
-
 import Type "../shared/Type";
 
 persistent actor ATSOptimizer {
 
-  // Cek apakah sebuah Text mengandung karakter tertentu
-  private func hasChar(text : Text, char : Char) : Bool {
-    return Text.contains(text, #char char);
+  // Helper cek karakter khusus
+  private func hasChar(t : Text, c : Char) : Bool {
+    Text.contains(t, #char c)
   };
 
-  private func hasSpecialChars(text : Text) : Bool {
-    hasChar(text, '•') or hasChar(text, '▪') or hasChar(text, '→');
+  private func hasSpecialChars(t : Text) : Bool {
+    hasChar(t, '•') or hasChar(t, '▪') or hasChar(t, '→')
   };
 
-  // Fungsi all() lokal untuk cek semua elemen memenuhi kondisi
+  // all()
   private func all<A>(arr : [A], p : A -> Bool) : Bool {
-    for (x in arr.vals()) {
-      if (not p(x)) {
-        return false;
-      };
-    };
-    return true;
+    for (x in arr.vals()) { if (not p(x)) { return false } };
+    true
   };
 
   public shared query func analyzeResume(data : Type.Resume) : async Type.ATSReport {
     var passedChecksCount : Nat = 0;
-    var totalChecksCount : Nat = 0;
+    var totalChecksCount  : Nat = 0;
 
-    // --- Kategori 1: Format & Structure
-    let standardHeadersPassed = Array.size(data.workExperience) > 0 and Array.size(data.education) > 0;
+    // --- Kondisi dasar yang bisa dinilai dari data ---
+    let hasWork    = Array.size(data.workExperience) > 0;
+    let hasEdu     = Array.size(data.education) > 0;
+    let headersOk  = hasWork and hasEdu;
 
-    let formatChecks : [Type.ATSCheck] = [
-      {
-        name = "Uses standard fonts";
-        passed = true;
-        tip = "Use Arial, Calibri, or Times New Roman";
-      },
-      {
-        name = "No images or graphics";
-        passed = true;
-        tip = "Avoid images; ATS can't read them";
-      },
-      {
-        name = "Simple formatting";
-        passed = true;
-        tip = "Avoid complex tables and columns";
-      },
-      {
-        name = "Standard section headers";
-        passed = standardHeadersPassed;
-        tip = "Fill 'Experience' and 'Education' sections";
-      },
-    ];
-
-    // --- Kategori 2: Keywords & Content
-    let bioHasContent = data.personalInfo.bio.size() > 20;
+    let bioHasContent = Text.size(data.personalInfo.bio) >= 50;
     let skillsOptimized = Array.size(data.skills) >= 5;
-    let jobTitlesStandard = Array.size(data.workExperience) > 0;
-    let datesExist = all<Type.WorkExperience>(
+
+    let titlesPresent = all<Type.WorkExperience>(
       data.workExperience,
-      func(exp : Type.WorkExperience) {
-        exp.startDate.size() > 0 and exp.endDate.size() > 0
-      },
+      func (exp : Type.WorkExperience) : Bool {
+        Text.size(exp.jobTitle) > 0
+      }
     );
 
-    let contentChecks : [Type.ATSCheck] = [
-      {
-        name = "Bio contains keywords";
-        passed = bioHasContent;
-        tip = "Add relevant industry keywords to your bio";
-      },
-      {
-        name = "Skills section optimized";
-        passed = skillsOptimized;
-        tip = "List at least 5 relevant skills";
-      },
-      {
-        name = "Job titles match standards";
-        passed = jobTitlesStandard;
-        tip = "Use standard job titles";
-      },
-      {
-        name = "Consistent date formatting";
-        passed = datesExist;
-        tip = "Fill all dates in MM/YYYY format";
-      },
-    ];
-
-    // --- Kategori 3: Technical Requirements
-    let noSpecial = not hasSpecialChars(data.personalInfo.bio) and all<Type.WorkExperience>(
+    // endDate boleh kosong jika current = true
+    let datesOk = all<Type.WorkExperience>(
       data.workExperience,
-      func(exp : Type.WorkExperience) {
-        not hasSpecialChars(exp.description);
-      },
+      func (exp : Type.WorkExperience) : Bool {
+        Text.size(exp.startDate) > 0 and (exp.current or Text.size(exp.endDate) > 0)
+      }
     );
 
-    let techChecks : [Type.ATSCheck] = [
-      {
-        name = "File format compatible";
-        passed = true;
-        tip = "Use .docx or .pdf for downloads";
-      },
-      {
-        name = "No special characters";
-        passed = noSpecial;
-        tip = "Avoid using graphical bullets or symbols";
-      },
+    let noSpecial = (not hasSpecialChars(data.personalInfo.bio)) and
+      all<Type.WorkExperience>(
+        data.workExperience,
+        func (exp : Type.WorkExperience) : Bool {
+          not hasSpecialChars(exp.description)
+        }
+      );
+
+    // --- Cek yang hanya untuk tampilan (informasi), tidak dipakai untuk skoring ---
+    let formatChecksDisplay : [Type.ATSCheck] = [
+      { name = "Uses standard fonts";     passed = true;       tip = "Use Arial, Calibri, or Times New Roman" },
+      { name = "No images or graphics";   passed = true;       tip = "Avoid images; ATS can't read them" },
+      { name = "Simple formatting";       passed = true;       tip = "Avoid complex tables and columns" },
+      { name = "Standard section headers";passed = headersOk;  tip = "Fill 'Experience' and 'Education' sections" },
     ];
 
-    // Gabungkan kategori
-    let allCategories : [Type.ATSCategory] = [
-      { category = "Format & Structure"; checks = formatChecks },
-      { category = "Keywords & Content"; checks = contentChecks },
-      { category = "Technical Requirements"; checks = techChecks },
+    let contentChecksDisplay : [Type.ATSCheck] = [
+      { name = "Bio contains keywords";     passed = bioHasContent;  tip = "Add relevant industry keywords to your bio" },
+      { name = "Skills section optimized";  passed = skillsOptimized;tip = "List at least 5 relevant skills" },
+      { name = "Job titles present";        passed = titlesPresent;  tip = "Use clear, standard job titles" },
+      { name = "Consistent date formatting";passed = datesOk;        tip = "Fill all dates in MM/YYYY format" },
     ];
 
-    // Hitung skor
-    for (category in allCategories.vals()) {
-      for (check in category.checks.vals()) {
-        if (check.passed) { passedChecksCount += 1 };
+    let techChecksDisplay : [Type.ATSCheck] = [
+      { name = "File format compatible"; passed = true;     tip = "Use .docx or .pdf for downloads" },
+      { name = "No special characters";  passed = noSpecial;tip = "Avoid decorative bullets or symbols (• ▪ →)" },
+    ];
+
+    // --- Cek yang dipakai untuk menghitung skor (tanpa cek 'selalu true') ---
+    let formatChecksScore : [Type.ATSCheck] = [
+      { name = "Standard section headers"; passed = headersOk; tip = "" },
+    ];
+    let contentChecksScore = contentChecksDisplay; // semua bisa dinilai
+    let techChecksScore : [Type.ATSCheck] = [
+      { name = "No special characters"; passed = noSpecial; tip = "" },
+    ];
+
+    let scoredCategories : [Type.ATSCategory] = [
+      { category = "Format & Structure";   checks = formatChecksScore },
+      { category = "Keywords & Content";   checks = contentChecksScore },
+      { category = "Technical Requirements"; checks = techChecksScore },
+    ];
+
+    // Yang dikirim ke FE untuk ditampilkan (lengkap)
+    let displayCategories : [Type.ATSCategory] = [
+      { category = "Format & Structure";   checks = formatChecksDisplay },
+      { category = "Keywords & Content";   checks = contentChecksDisplay },
+      { category = "Technical Requirements"; checks = techChecksDisplay },
+    ];
+
+    // Hitung skor hanya dari scoredCategories
+    for (cat in scoredCategories.vals()) {
+      for (chk in cat.checks.vals()) {
+        if (chk.passed) { passedChecksCount += 1 };
         totalChecksCount += 1;
-      };
+      }
     };
 
-    let finalScore = if (totalChecksCount == 0) 0 else (passedChecksCount * 100 / totalChecksCount);
+    let finalScore : Nat =
+      if (totalChecksCount == 0) 0
+      else (passedChecksCount * 100 / totalChecksCount);
 
     {
       score = finalScore;
-      categories = allCategories;
-    };
+      categories = displayCategories; // tampilkan semuanya di UI
+    }
   };
 };

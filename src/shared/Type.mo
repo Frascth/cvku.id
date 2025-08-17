@@ -43,7 +43,7 @@ module {
   public let ROLE_ADMIN : Role = "admin";
 
   public type CreatedResponse = {
-    lid:Text;
+    lid:Nat;
     id:Nat
   };
 
@@ -168,6 +168,31 @@ module {
     score : Nat;
     categories : [ATSCategory];
   };
+
+  // === Resume Score Types ===
+  public type ScoreCategory = {
+    name : Text;
+    score : Nat;
+    maxScore : Nat;
+    suggestions : [Text];
+  };
+
+  public type Priority = { #High; #Medium; #Low };
+
+  public type Improvement = {
+    priority : Priority;
+    title : Text;
+    description : Text;
+    example : Text;
+  };
+
+  public type ResumeScoreReport = {
+    overall : Nat;
+    rankPercentile : Nat;         // 0..100
+    categories : [ScoreCategory];
+    improvements : [Improvement];
+  };
+
 
   // resume_service/main.mo assemble all
   public type Resume = {

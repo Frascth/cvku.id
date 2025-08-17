@@ -68,7 +68,7 @@ export const PersonalInfoForm: React.FC = () => {
 
       toast({
         title: "Personal info saved",
-        description: "Education information has been saved successfully.",
+        description: "Personal information has been saved successfully.",
       });
     } catch (error) {
       console.error(error);

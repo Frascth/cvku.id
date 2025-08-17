@@ -1,57 +1,72 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle, XCircle, AlertCircle, Target, Zap } from 'lucide-react';
-import { useResumeStore } from '../store/useResumeStore';
-import { useToast } from '@/hooks/use-toast';
-import { getATSReport } from "@/lib/atsHandler";
+import React, { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CheckCircle, XCircle, AlertCircle, Target, Zap } from "lucide-react";
+import { useResumeStore } from "../store/useResumeStore";
+import { useToast } from "@/hooks/use-toast";
+import { createAtsHandler } from "@/lib/atsHandler";
+import { AuthClient } from "@dfinity/auth-client";
 
 export const ATSOptimization: React.FC = () => {
-  const { resumeData } = useResumeStore();
+  // ⬇️ ambil dari store (persisted)
+  const resumeData = useResumeStore(s => s.resumeData);
+  const atsScore = useResumeStore(s => s.atsScore);
+  const atsCategories = useResumeStore(s => s.atsCategories);
+  const setAtsReport = useResumeStore(s => s.setAtsReport);
+
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [atsScore, setAtsScore] = useState<number | null>(null);
-  const [atsChecks, setAtsChecks] = useState<any[]>([]);
+
+  // AuthClient untuk handler ATS
+  const [authClient, setAuthClient] = useState<AuthClient | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const ac = await AuthClient.create();
+      if (mounted) setAuthClient(ac);
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  // Build handler saat authClient siap
+  const ats = useMemo(
+    () => (authClient ? createAtsHandler(authClient) : null),
+    [authClient]
+  );
 
   const handleAnalyze = async () => {
+    if (!ats) {
+      toast({ title: "Not ready", description: "Auth belum siap. Coba lagi sebentar." });
+      return;
+    }
     setIsAnalyzing(true);
     try {
-      // 1. Panggil fungsi getATSReport tanpa argumen.
-      //    Fungsi ini mengambil data dari store secara internal.
-      const atsResult = await getATSReport();
+      const atsResult = await ats.analyze(resumeData);
+      if (!atsResult) throw new Error("Analysis result is empty.");
 
-      // 2. Periksa apakah hasil analisis ada sebelum menggunakannya.
-      if (atsResult) {
-        // 3. Set score dari hasil analisis.
-        setAtsScore(Number(atsResult.score));
+      // ⬇️ simpan ke store (persisted)
+      setAtsReport({
+        score: Number(atsResult.score),
+        categories: atsResult.categories,
+      });
 
-        // 4. Perbaiki cara mengakses checks.
-        //    'checks' berada di dalam 'categories', yang merupakan array.
-        //    Kita asumsikan checks yang ingin ditampilkan adalah dari kategori pertama.
-        if (atsResult.categories && atsResult.categories.length > 0) {
-          setAtsChecks(atsResult.categories[0].checks);
-        } else {
-          setAtsChecks([]); // Set checks ke array kosong jika tidak ada kategori
-        }
-
-        toast({
-          title: "ATS Analysis Complete",
-          description: "Your resume has been analyzed for ATS compatibility.",
-        });
-      } else {
-        throw new Error("Analysis result is empty.");
-      }
-    } catch (error) {
+      toast({
+        title: "ATS Analysis Complete",
+        description: "Your resume has been analyzed for ATS compatibility."
+      });
+    } catch (e) {
+      console.error("Error fetching ATS report:", e);
       toast({
         title: "Error",
-        description: "Failed to analyze resume.",
-        variant: "destructive",
+        description: "Failed to analyze resume. Check console for details.",
+        variant: "destructive"
       });
+    } finally {
+      setIsAnalyzing(false);
     }
-    setIsAnalyzing(false);
   };
 
   const getScoreColor = (score: number) => {
@@ -101,7 +116,7 @@ export const ATSOptimization: React.FC = () => {
 
               <Button
                 onClick={handleAnalyze}
-                disabled={isAnalyzing}
+                disabled={isAnalyzing || !ats}
                 className="w-full"
               >
                 {isAnalyzing ? (
@@ -118,23 +133,23 @@ export const ATSOptimization: React.FC = () => {
               </Button>
             </div>
 
-            {atsChecks.length > 0 && (
+            {atsCategories.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">
-                    {atsChecks.flatMap(cat => cat.checks).filter(check => check.passed).length}
+                    {atsCategories.flatMap(cat => cat.checks).filter(check => check.passed).length}
                   </div>
                   <div className="text-sm text-green-700">Passed Checks</div>
                 </div>
                 <div className="text-center p-4 bg-red-50 rounded-lg">
                   <div className="text-2xl font-bold text-red-600">
-                    {atsChecks.flatMap(cat => cat.checks).filter(check => !check.passed).length}
+                    {atsCategories.flatMap(cat => cat.checks).filter(check => !check.passed).length}
                   </div>
                   <div className="text-sm text-red-700">Failed Checks</div>
                 </div>
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">
-                    {atsChecks.flatMap(cat => cat.checks).length}
+                    {atsCategories.flatMap(cat => cat.checks).length}
                   </div>
                   <div className="text-sm text-blue-700">Total Checks</div>
                 </div>
@@ -144,8 +159,8 @@ export const ATSOptimization: React.FC = () => {
 
           {/* Checks Tab */}
           <TabsContent value="checks" className="space-y-4">
-            {atsChecks.length > 0 ? (
-              atsChecks.map((category, index) => (
+            {atsCategories.length > 0 ? (
+              atsCategories.map((category, index) => (
                 <div key={index} className="space-y-3">
                   <h3 className="font-semibold text-lg">{category.category}</h3>
                   <div className="space-y-2">
@@ -174,8 +189,8 @@ export const ATSOptimization: React.FC = () => {
 
           {/* Tips Tab */}
           <TabsContent value="tips" className="space-y-4">
-            {atsChecks.length > 0 ? (
-              atsChecks
+            {atsCategories.length > 0 ? (
+              atsCategories
                 .flatMap(cat => cat.checks)
                 .filter(check => !check.passed)
                 .map((check, index) => (

@@ -62,7 +62,7 @@ export const EducationForm: React.FC = () => {
     }
   };
 
-  const handleRemove = async (id: string) => {
+  const handleRemove = async (id: number) => {
     try {
 
       const isDeleted = await educationHandler.clientDeleteById(id);

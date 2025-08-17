@@ -24,6 +24,7 @@
       },
       "wasm": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.wasm"
     },
+    
     "auth_service": {
       "type": "motoko",
       "main": "src/auth_service/main.mo"
@@ -70,6 +71,17 @@
       "main": "src/social_service/main.mo"
     },
 
+    "coverleter_service": {
+      "type": "motoko",
+      "main": "src/coverleter_service/main.mo",
+      "dependencies": ["llm_service"]
+    },
+
+    "resume_score_service": {
+    "type": "motoko",
+    "main": "src/resume_score_service/main.mo"
+    },
+
     "frontend": {
       "type": "assets",
       "source": [
@@ -85,7 +97,10 @@
         "custom_section_service",
         "ats_service",
         "social_service",
-        "resume_service"
+        "coverleter_service",
+        "llm_service",
+        "resume_service",
+        "resume_score_service"
       ]
     }
   },

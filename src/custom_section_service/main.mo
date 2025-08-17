@@ -78,7 +78,7 @@ persistent actor CustomSectionService {
     };
 
     public shared ({ caller }) func clientAddCustomSection(request: {
-        lid: Text; // local id for optimistic update
+        lid: Nat; // local id for optimistic update
         name: Text;
     }) : async Type.Response<Type.CreatedResponse>{
         nextCustomSectionId += 1;
@@ -187,7 +187,7 @@ persistent actor CustomSectionService {
 
     public shared ({ caller }) func clientAddItem(request: {
         sectionId : Nat;
-        lid: Text; // local id for optimistic update
+        lid: Nat; // local id for optimistic update
         title : Text;
         description : Text;
         subtitle : ?Text;

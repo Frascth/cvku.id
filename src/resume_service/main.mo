@@ -76,7 +76,7 @@ persistent actor ResumeService {
 
   public shared ({ caller }) func clientAddResumeLink(
     { lid; path; isPublic } : {
-      lid : Text;
+      lid : Nat;
       path : Text;
       isPublic : Bool;
     }

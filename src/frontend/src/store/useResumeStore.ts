@@ -1,14 +1,30 @@
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-import { AuthClient } from '@dfinity/auth-client';
-// import { ActorSubclass, HttpAgent } from '@dfinity/agent';
-// import { Principal } from '@dfinity/principal';
-import { toast } from 'sonner';
-import { createCertificationHandler } from '../lib/certificationHandler';
-import { createSkillsHandler } from '../lib/skillsHandler'; // Pastikan ini terimpor
-import { isValidUrl } from '@/lib/utils';
+// useResumeStore.ts
+import { create, StateCreator } from "zustand";
+import { devtools, persist, createJSONStorage } from "zustand/middleware";
+import { AuthClient } from "@dfinity/auth-client";
+import { createCertificationHandler } from "../lib/certificationHandler";
+import { createSkillsHandler } from "../lib/skillsHandler";
+import { isValidUrl } from "@/lib/utils";
 
-export type SkillLevel = string;
+/* =========================
+ * Types
+ * ========================= */
+export type SkillLevel = "Beginner" | "Intermediate" | "Advanced" | "Expert";
+
+// FE-only types (untuk Resume Score)
+export type ScorePriority = "High" | "Medium" | "Low";
+export interface ScoreCategoryFE {
+  name: string;
+  score: number;
+  maxScore: number;
+  suggestions: string[];
+}
+export interface ImprovementFE {
+  title: string;
+  description: string;
+  example: string;
+  priority: ScorePriority;
+}
 
 export interface PersonalInfo {
   fullName: string;
@@ -21,7 +37,7 @@ export interface PersonalInfo {
 }
 
 export interface WorkExperience {
-  id: string;
+  id: number; // nat
   jobTitle: string;
   company: string;
   startDate: string;
@@ -31,7 +47,7 @@ export interface WorkExperience {
 }
 
 export interface Education {
-  id: string;
+  id: number; // nat
   degree: string;
   institution: string;
   graduationDate: string;
@@ -39,13 +55,13 @@ export interface Education {
 }
 
 export interface Skill {
-  id: string;
+  id: string; // text
   name: string;
-  level: SkillLevel; // Sekarang 'level' di 'Skill' adalah 'string'
+  level: SkillLevel;
 }
 
 export interface Certification {
-  id: string;
+  id: string; // text
   name: string;
   issuer: string;
   date: string;
@@ -53,16 +69,16 @@ export interface Certification {
 }
 
 export interface SocialLink {
-  lid?: string; // local id for optimistic update
-  id: string;
+  lid?: number; // local-only
+  id: number;   // nat
   platform: string;
   url: string;
 }
 
 export interface CustomSectionItem {
-  lid?: string, // local id for optimistic update
-  id: string;
-  sectionId: string;
+  lid?: number; // local-only
+  id: number;   // nat
+  sectionId: number; // nat
   title: string;
   subtitle?: string;
   description: string;
@@ -70,15 +86,15 @@ export interface CustomSectionItem {
 }
 
 export interface CustomSection {
-  lid?: string, // local id for optimistic update
-  id: string;
+  lid?: number; // local-only
+  id: number;   // nat
   name: string;
   items: CustomSectionItem[];
 }
 
 export interface ResumeLink {
-  lid?: string, // local id for optimistic update
-  id: string;
+  lid?: string;
+  id: number;
   path: string;
   isPublic: boolean;
 }
@@ -94,611 +110,654 @@ export interface ResumeData {
   resumeLink?: ResumeLink;
 }
 
+export interface ATSCheck { name: string; passed: boolean; tip: string }
+export interface ATSCategory { category: string; checks: ATSCheck[] }
+
 export interface ResumeStore {
   resumeData: ResumeData;
-  selectedTemplate: 'minimal' | 'modern' | 'professional';
+  selectedTemplate: "minimal" | "modern" | "professional";
   isPrivate: boolean;
-  // --- Penambahan untuk Backend Integration ---
+  hasHydrated: boolean;
+  currentPrincipal: string | null;
+
+  // --- ATS report ---
+  atsScore: number | null;
+  atsCategories: ATSCategory[];
+  setAtsReport: (r: { score: number; categories: ATSCategory[] }) => void;
+  clearAts: () => void;
+
+  // --- Resume Score ---
+  resumeScoreOverall: number | null;
+  resumeScoreCategories: ScoreCategoryFE[];
+  resumeScoreImprovements: ImprovementFE[];
+  setResumeScore: (r: {
+    overall: number;
+    categories: ScoreCategoryFE[];
+    improvements: ImprovementFE[];
+  }) => void;
+  clearResumeScore: () => void;
+
+  // handlers
   certificationHandler: ReturnType<typeof createCertificationHandler> | null;
   skillsHandler: ReturnType<typeof createSkillsHandler> | null;
   initializeHandlers: (authClient: AuthClient) => void;
-  // --- FUNGSI CRUD UNTUK SKILL ---
-  fetchSkills: () => Promise<void>;
-  saveAllSkills: () => Promise<void>; // <<< Tambahkan ini: Untuk menyimpan semua skill ke backend (batch update)
-  addSkill: (skill: Omit<Skill, 'id'>) => Promise<void>;
-  updateSkill: (id: string, skill: Partial<Omit<Skill, 'id'>>) => void; // <<< Tidak lagi async, hanya update lokal
-  removeSkill: (id: string) => Promise<void>;
 
-  // --- FUNGSI CRUD UNTUK CERTIFICATION (tetap sama) ---
+  // Skills
+  setSkills: (skills: Skill[]) => void;
+  addSkill: (skill: Omit<Skill, "id"> | Skill) => void;
+  updateSkill: (id: string, patch: Partial<Skill>) => void;
+  removeSkill: (id: string) => void;
+  fetchSkills: () => Promise<void>;
+  saveAllSkills: () => Promise<void>;
+
+  // Certifications
   fetchCertifications: () => Promise<void>;
   saveAllCertifications: () => Promise<void>;
-  addCertification: (cert: Omit<Certification, 'id'>) => Promise<void>;
-  updateCertification: (id: string, cert: Partial<Omit<Certification, 'id'>>) => void; // Tidak async
+  addCertification: (cert: Omit<Certification, "id">) => Promise<void>;
+  updateCertification: (id: string, cert: Partial<Omit<Certification, "id">>) => void;
   removeCertification: (id: string) => Promise<void>;
-  // --- Akhir Penambahan ---
+
+  // Personal info
   updatePersonalInfo: (info: Partial<PersonalInfo>) => void;
   isPersonalInfoFilled: () => boolean;
   resetPersonalInfo: () => void;
+
+  // Work experience
   setWorkExperience: (experiences: WorkExperience[]) => void;
   addWorkExperience: (experience: WorkExperience) => void;
-  updateWorkExperience: (id: string, experience: Partial<WorkExperience>) => void;
-  removeWorkExperience: (id: string) => void;
+  updateWorkExperience: (id: number, experience: Partial<WorkExperience>) => void;
+  removeWorkExperience: (id: number) => void;
+
+  // Education
   setEducation: (experiences: Education[]) => void;
   addEducation: (education: Education) => void;
-  updateEducation: (id: string, education: Partial<Education>) => void;
-  removeEducation: (id: string) => void;
-  addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => void;
+  updateEducation: (id: number, education: Partial<Education>) => void;
+  removeEducation: (id: number) => void;
+
+  // Social links
+  addSocialLink: (socialLink: Omit<SocialLink, "id">) => void;
   setSocialLink: (params: { socialLinks: SocialLink[] }) => void;
-  updateSocialLink: (id: string, socialLink: Partial<SocialLink>) => void;
-  updateSocialLinkId: (params: { lid: string, id: string }) => void;
-  removeSocialLink: (id: string) => void;
+  updateSocialLink: (id: number, socialLink: Partial<SocialLink>) => void;
+  updateSocialLinkId: (params: { lid: number; id: number }) => void;
+  removeSocialLink: (id: number) => void;
+
+  // Custom sections
   setCustomSection: (params: { sections: CustomSection[] }) => void;
-  addCustomSection: (section: Omit<CustomSection, 'id'>) => void;
-  updateCustomSectionId: (lid: string, id: string) => void;
-  updateCustomSection: (id: string, section: Partial<CustomSection>) => void;
-  removeCustomSection: (id: string) => void;
+  addCustomSection: (section: Omit<CustomSection, "id">) => void;
+  updateCustomSectionId: (lid: number, id: number) => void;
+  updateCustomSection: (id: number, section: Partial<CustomSection>) => void;
+  removeCustomSection: (id: number) => void;
   addCustomSectionItem: (item: CustomSectionItem) => void;
-  updateCustomSectionItemId: (params: { sectionId: string, lid: string, newId: string }) => void;
+  updateCustomSectionItemId: (params: { sectionId: number; lid: number; newId: number }) => void;
+
+  // Resume link
   setResumeLink: (params: { resumeLink: ResumeLink }) => void;
-  updateResumeLinkId: (params: { lid: string, id: string }) => void;
+  updateResumeLinkId: (params: { lid: number; id: number }) => void;
   getResumeLinkUrl: () => string;
-  setTemplate: (template: 'minimal' | 'modern' | 'professional') => void;
+
+  // misc
+  setTemplate: (template: "minimal" | "modern" | "professional") => void;
   setPrivacy: (isPrivate: boolean) => void;
 }
 
+/* =========================
+ * Initial state
+ * ========================= */
 const initialResumeData: ResumeData = {
   personalInfo: {
-    fullName: '',
-    email: '',
-    phone: '',
-    location: '',
-    website: '',
-    bio: '',
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    website: "",
+    bio: "",
   },
-  workExperience: [
-  ],
-  education: [
-  ],
-  skills: [
-  ],
-  certifications: [
-  ],
-  socialLinks: [
-  ],
+  workExperience: [],
+  education: [],
+  skills: [],
+  certifications: [],
+  socialLinks: [],
   customSections: [],
   resumeLink: {
-    lid: '',
-    id: '',
-    path: '',
+    lid: "",
+    id: 0,
+    path: "",
     isPublic: true,
   },
 };
 
+// (opsional) helper tak terpakai, aman dibiarkan
+const mergeById = <T extends { id: string }>(local: T[], server: T[]) => {
+  const map = new Map<string, T>();
+  for (const s of local) map.set(s.id, s);
+  for (const s of server) map.set(s.id, s);
+  return Array.from(map.values());
+};
+
+/* =========================
+ * Creator (tanpa middleware tags)
+ * ========================= */
+type SC = StateCreator<ResumeStore, [], []>;
+
+const createStoreImpl: SC = (set, get) => ({
+  // ===== default state =====
+  resumeData: initialResumeData,
+  selectedTemplate: "modern",
+  isPrivate: false,
+  certificationHandler: null,
+  skillsHandler: null,
+  hasHydrated: false,
+  currentPrincipal: null,
+
+  // ===== ATS =====
+  atsScore: null,
+  atsCategories: [],
+  setAtsReport: ({ score, categories }) =>
+    set((s) => ({ ...s, atsScore: score, atsCategories: categories })),
+  clearAts: () =>
+    set((s) => ({ ...s, atsScore: null, atsCategories: [] })),
+
+  // ===== Resume Score =====
+  resumeScoreOverall: null,
+  resumeScoreCategories: [],
+  resumeScoreImprovements: [],
+  setResumeScore: ({ overall, categories, improvements }) =>
+    set((s) => ({
+      ...s,
+      resumeScoreOverall: overall,
+      resumeScoreCategories: categories,
+      resumeScoreImprovements: improvements,
+    })),
+  clearResumeScore: () =>
+    set((s) => ({
+      ...s,
+      resumeScoreOverall: null,
+      resumeScoreCategories: [],
+      resumeScoreImprovements: [],
+    })),
+
+  // ===== handlers init =====
+  initializeHandlers: (authClient) => {
+    try {
+      const pid = authClient.getIdentity().getPrincipal().toText();
+      const prev = get().currentPrincipal;
+
+      // principal berubah → bersihkan state per-user
+      if (!prev || prev !== pid) {
+        set((state) => ({
+          ...state,
+          currentPrincipal: pid,
+          atsScore: null,
+          atsCategories: [],
+          resumeScoreOverall: null,
+          resumeScoreCategories: [],
+          resumeScoreImprovements: [],
+          resumeData: {
+            ...state.resumeData,
+            skills: [],
+            // jika ingin, kosongkan koleksi lain juga saat ganti akun:
+            // certifications: [], socialLinks: [], customSections: []
+          },
+        }));
+      }
+
+      // set handlers
+      set({
+        certificationHandler: createCertificationHandler(authClient),
+        skillsHandler: createSkillsHandler(authClient),
+      });
+
+      // fetch data server untuk principal ini (handler sudah siap)
+      void get().fetchSkills?.();
+      void get().fetchCertifications?.();
+    } catch (error) {
+      console.error("Failed to initialize handlers:", error);
+    }
+  },
+
+  /* =========================
+   * Skills
+   * ========================= */
+  setSkills: (skills) =>
+    set((state) => ({ resumeData: { ...state.resumeData, skills } })),
+
+  fetchSkills: async () => {
+    const handler = get().skillsHandler;
+    if (!handler) throw new Error("Skills handler not initialized.");
+    try {
+      const fetched = await handler.clientGetAll(); // Skill[]
+      set((state) => ({
+        resumeData: { ...state.resumeData, skills: fetched },
+      }));
+    } catch (err) {
+      console.error("Failed to fetch skills:", err);
+      throw err;
+    }
+  },
+
+  saveAllSkills: async () => {
+    const handler = get().skillsHandler;
+    if (!handler) throw new Error("Skills handler not initialized.");
+    try {
+      const saved = await handler.clientSave(get().resumeData.skills); // Skill[]
+      set((state) => ({
+        resumeData: { ...state.resumeData, skills: saved },
+      }));
+    } catch (err) {
+      console.error("Failed to save all skills:", err);
+      throw err;
+    }
+  },
+
+  addSkill: async (skill) => {
+    const handler = get().skillsHandler;
+    if (!handler) throw new Error("Skills handler not initialized.");
+    try {
+      const newSkill = await handler.clientAdd(
+        "id" in skill ? { name: skill.name, level: skill.level } : skill
+      );
+      set((state) => ({
+        resumeData: {
+          ...state.resumeData,
+          skills: [...state.resumeData.skills, newSkill],
+        },
+      }));
+    } catch (err) {
+      console.error("Failed to add skill:", err);
+      throw err;
+    }
+  },
+
+  updateSkill: (id, patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        skills: state.resumeData.skills.map((s) =>
+          s.id === id ? { ...s, ...patch } : s
+        ),
+      },
+    })),
+
+  removeSkill: async (id) => {
+    const handler = get().skillsHandler;
+    if (!handler) throw new Error("Skills handler not initialized.");
+    try {
+      const ok = await handler.clientDeleteById(id);
+      if (!ok) throw new Error("Backend reported failure to delete skill.");
+      set((state) => ({
+        resumeData: {
+          ...state.resumeData,
+          skills: state.resumeData.skills.filter((s) => s.id !== id),
+        },
+      }));
+    } catch (err) {
+      console.error("Failed to remove skill:", err);
+      throw err;
+    }
+  },
+
+  /* =========================
+   * Certifications
+   * ========================= */
+  fetchCertifications: async () => {
+    const handler = get().certificationHandler;
+    if (!handler) throw new Error("Certification handler not initialized.");
+    try {
+      const fetched = await handler.clientGetAll();
+      set((state) => ({
+        resumeData: { ...state.resumeData, certifications: fetched as Certification[] },
+      }));
+    } catch (error) {
+      console.error("Failed to fetch certifications:", error);
+      throw error;
+    }
+  },
+
+  saveAllCertifications: async () => {
+    const handler = get().certificationHandler;
+    if (!handler) throw new Error("Certification handler not initialized.");
+    try {
+      await handler.clientSave(get().resumeData.certifications);
+    } catch (error) {
+      console.error("Failed to save all certifications:", error);
+      throw error;
+    }
+  },
+
+  addCertification: async (cert) => {
+    const handler = get().certificationHandler;
+    if (!handler) throw new Error("Certification handler not initialized.");
+    try {
+      const newCert = await handler.clientAdd(cert);
+      set((state) => ({
+        resumeData: {
+          ...state.resumeData,
+          certifications: [...state.resumeData.certifications, newCert],
+        },
+      }));
+    } catch (error) {
+      console.error("Failed to add certification:", error);
+      throw error;
+    }
+  },
+
+  updateCertification: (id, patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        certifications: state.resumeData.certifications.map((c) =>
+          c.id === id ? { ...c, ...patch } : c
+        ),
+      },
+    })),
+
+  removeCertification: async (id) => {
+    const handler = get().certificationHandler;
+    if (!handler) throw new Error("Certification handler not initialized.");
+    try {
+      const ok = await handler.clientDeleteById(id);
+      if (!ok) throw new Error("Backend reported failure to delete certification.");
+      set((state) => ({
+        resumeData: {
+          ...state.resumeData,
+          certifications: state.resumeData.certifications.filter((c) => c.id !== id),
+        },
+      }));
+    } catch (error) {
+      console.error("Failed to remove certification:", error);
+      throw error;
+    }
+  },
+
+  /* =========================
+   * Personal Info
+   * ========================= */
+  updatePersonalInfo: (info) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        personalInfo: { ...state.resumeData.personalInfo, ...info },
+      },
+    })),
+
+  isPersonalInfoFilled: () => {
+    const { fullName, email, phone, location, website, bio } = get().resumeData.personalInfo;
+    return !!(fullName && email && phone && location && website && bio);
+  },
+
+  resetPersonalInfo: () =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        personalInfo: {
+          fullName: "",
+          email: "",
+          phone: "",
+          location: "",
+          website: "",
+          bio: "",
+          photoUrl: "",
+        },
+      },
+    })),
+
+  /* =========================
+   * Work Experience
+   * ========================= */
+  setWorkExperience: (experiences) =>
+    set((state) => ({ resumeData: { ...state.resumeData, workExperience: experiences } })),
+
+  addWorkExperience: (experience) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        workExperience: [...state.resumeData.workExperience, experience],
+      },
+    })),
+
+  updateWorkExperience: (id, patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        workExperience: state.resumeData.workExperience.map((exp) =>
+          exp.id === id ? { ...exp, ...patch } : exp
+        ),
+      },
+    })),
+
+  removeWorkExperience: (id) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        workExperience: state.resumeData.workExperience.filter((exp) => exp.id !== id),
+      },
+    })),
+
+  /* =========================
+   * Education
+   * ========================= */
+  setEducation: (educations) =>
+    set((state) => ({ resumeData: { ...state.resumeData, education: educations } })),
+
+  addEducation: (education) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        education: [...state.resumeData.education, education],
+      },
+    })),
+
+  updateEducation: (id, patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        education: state.resumeData.education.map((edu) =>
+          edu.id === id ? { ...edu, ...patch } : edu
+        ),
+      },
+    })),
+
+  removeEducation: (id) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        education: state.resumeData.education.filter((edu) => edu.id !== id),
+      },
+    })),
+
+  /* =========================
+   * Social Links
+   * ========================= */
+  addSocialLink: (socialLink) =>
+    set((state) => {
+      if (!isValidUrl(socialLink.url)) {
+        throw new Error("Please provide a valid url");
+      }
+      return {
+        resumeData: {
+          ...state.resumeData,
+          socialLinks: [...state.resumeData.socialLinks, { ...socialLink, id: Date.now() }],
+        },
+      };
+    }),
+
+  setSocialLink: ({ socialLinks }) =>
+    set((state) => ({ resumeData: { ...state.resumeData, socialLinks } })),
+
+  updateSocialLink: (id, patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        socialLinks: state.resumeData.socialLinks.map((link) =>
+          link.id === id ? { ...link, ...patch } : link
+        ),
+      },
+    })),
+
+  updateSocialLinkId: ({ lid, id }) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        socialLinks: state.resumeData.socialLinks.map((link) =>
+          link.lid === lid ? { ...link, id } : link
+        ),
+      },
+    })),
+
+  removeSocialLink: (id) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        socialLinks: state.resumeData.socialLinks.filter((l) => l.id !== id),
+      },
+    })),
+
+  /* =========================
+   * Custom Sections
+   * ========================= */
+  setCustomSection: ({ sections }) =>
+    set((state) => ({ resumeData: { ...state.resumeData, customSections: sections } })),
+
+  addCustomSection: (section) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        customSections: [...state.resumeData.customSections, { ...section, id: Date.now() }],
+      },
+    })),
+
+  updateCustomSectionId: (lid, newId) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        customSections: state.resumeData.customSections.map((section) =>
+          section.lid === lid ? { ...section, id: newId } : section
+        ),
+      },
+    })),
+
+  updateCustomSection: (id, patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        customSections: state.resumeData.customSections.map((s) =>
+          s.id === id ? { ...s, ...patch } : s
+        ),
+      },
+    })),
+
+  removeCustomSection: (id) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        customSections: state.resumeData.customSections.filter((s) => s.id !== id),
+      },
+    })),
+
+  addCustomSectionItem: (item) =>
+    set((state) => {
+      const idx = state.resumeData.customSections.findIndex((s) => s.id === Number(item.sectionId));
+      if (idx === -1) throw new Error(`Custom section with id "${item.sectionId}" not found.`);
+      const section = state.resumeData.customSections[idx];
+      const updatedSection = { ...section, items: [...section.items, item] };
+      const updatedSections = [...state.resumeData.customSections];
+      updatedSections[idx] = updatedSection;
+      return { resumeData: { ...state.resumeData, customSections: updatedSections } };
+    }),
+
+  updateCustomSectionItemId: ({ sectionId, lid, newId }) =>
+    set((state) => {
+      const sidx = state.resumeData.customSections.findIndex((s) => s.id === sectionId);
+      if (sidx === -1) throw new Error(`Custom section with id "${sectionId}" not found.`);
+      const section = state.resumeData.customSections[sidx];
+      const iidx = section.items.findIndex((it) => it.lid === lid);
+      if (iidx === -1) throw new Error(`Item with lid "${lid}" not found.`);
+      const items = [...section.items];
+      items[iidx] = { ...items[iidx], id: newId };
+      const updatedSection = { ...section, items };
+      const updatedSections = [...state.resumeData.customSections];
+      updatedSections[sidx] = updatedSection;
+      return { resumeData: { ...state.resumeData, customSections: updatedSections } };
+    }),
+
+  /* =========================
+   * Resume Link
+   * ========================= */
+  getResumeLinkUrl: () => {
+    const path = get().resumeData.resumeLink?.path;
+    if (!path) return "";
+    return `${window.location.origin}/resume/${path}`;
+  },
+
+  setResumeLink: ({ resumeLink }) =>
+    set((state) => ({ resumeData: { ...state.resumeData, resumeLink } })),
+
+  updateResumeLinkId: ({ lid, id }) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        resumeLink: { ...state.resumeData.resumeLink, id },
+      },
+    })),
+
+  /* =========================
+   * misc
+   * ========================= */
+  setTemplate: (template) => set({ selectedTemplate: template }),
+  setPrivacy: (isPrivate) => set({ isPrivate }),
+});
+
+/* =========================
+ * Persisted slice typing
+ * ========================= */
+type PersistedSlice = Pick<
+  ResumeStore,
+  | "resumeData"
+  | "selectedTemplate"
+  | "isPrivate"
+  | "currentPrincipal"
+  | "atsScore"
+  | "atsCategories"
+  | "resumeScoreOverall"
+  | "resumeScoreCategories"
+  | "resumeScoreImprovements"
+>;
+
+/* =========================
+ * Export store (devtools + persist)
+ * ========================= */
 export const useResumeStore = create<ResumeStore>()(
   devtools(
-    (set, get) => ({
-      resumeData: initialResumeData,
-      selectedTemplate: 'modern',
-      isPrivate: false,
+    persist<ResumeStore, [], [], PersistedSlice>(createStoreImpl, {
+      name: "resume-store",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s): PersistedSlice => ({
+        resumeData: s.resumeData,
+        selectedTemplate: s.selectedTemplate,
+        isPrivate: s.isPrivate,
+        currentPrincipal: s.currentPrincipal,
+        atsScore: s.atsScore,
+        atsCategories: s.atsCategories,
+        resumeScoreOverall: s.resumeScoreOverall,
+        resumeScoreCategories: s.resumeScoreCategories,
+        resumeScoreImprovements: s.resumeScoreImprovements,
+      }),
+      onRehydrateStorage: () => (state, error) => {
+        if (!error && state) {
+          state.hasHydrated = true;
 
-      // --- Implementasi Backend Integration ---
-      certificationHandler: null, // Default null, akan diinisialisasi
-      skillsHandler: null,
-      initializeHandlers: (authClient: AuthClient) => {
-        try {
-          const certHandler = createCertificationHandler(authClient);
-          const skillHandler = createSkillsHandler(authClient); // Inisialisasi skillsHandler
+          // safety default utk versi lama
+          if (state.atsScore === undefined) state.atsScore = null;
+          if (!state.atsCategories) state.atsCategories = [];
+          if (state.resumeScoreOverall === undefined) state.resumeScoreOverall = null;
+          if (!state.resumeScoreCategories) state.resumeScoreCategories = [];
+          if (!state.resumeScoreImprovements) state.resumeScoreImprovements = [];
+          if (state.currentPrincipal === undefined) state.currentPrincipal = null;
 
-          set({
-            certificationHandler: certHandler,
-            skillsHandler: skillHandler,
-          });
-
-          // Setelah handlers diinisialisasi, fetch data awal
-          // get().fetchPersonalInfo();
-          // get().fetchCertifications();
-          // get().fetchSkills(); // Panggil fetchSkills
-          // get().fetchWorkExperience();
-          // get().fetchEducation();
-          // get().fetchSocialLinks();
-          // get().fetchCustomSections();
-
-        } catch (error) {
-          console.error("Failed to initialize handlers:", error);
-          toast.error(`Initialization failed: ${(error as Error).message || error}`);
+          // ⛔️ Jangan fetch di sini (handlers belum di-init).
+          // Fetch dilakukan di initializeHandlers setelah handler tersedia.
         }
       },
-
-      fetchCertifications: async () => {
-        const handler = get().certificationHandler;
-        if (!handler) {
-          console.error("Certification handler not initialized.");
-          // Anda bisa throw error atau mengembalikan Promise.reject() di sini
-          // agar komponen yang memanggil bisa menangani error
-          throw new Error("Certification handler not initialized.");
-        }
-        try {
-          const fetchedCerts = await handler.clientGetAll();
-          set(state => ({
-            resumeData: {
-              ...state.resumeData,
-              // Ini adalah type assertion sebagai upaya terakhir jika TypeScript masih salah
-              certifications: fetchedCerts as Certification[],
-            },
-          }));
-        } catch (error) {
-          console.error("Failed to fetch certifications:", error);
-          throw error; // Re-throw for component to catch and show toast
-        }
-      },
-
-      saveAllCertifications: async () => {
-        const handler = get().certificationHandler;
-        if (!handler) {
-          console.error("Certification handler not initialized.");
-          throw new Error("Certification handler not initialized.");
-        }
-        try {
-          const currentCerts = get().resumeData.certifications;
-          await handler.clientSave(currentCerts); // Ini akan memanggil clientBatchUpdate di handler
-          // Opsional: fetch ulang setelah save jika ada kemungkinan perubahan di backend
-          // await get().fetchCertifications();
-        } catch (error) {
-          console.error("Failed to save all certifications:", error);
-          throw error; // Re-throw for component to catch and show toast
-        }
-      },
-      // --- Akhir Implementasi Backend Integration ---
-
-      fetchSkills: async () => {
-        const handler = get().skillsHandler;
-        if (!handler) { toast.error("Skills service not ready."); return; }
-        try {
-          const fetchedSkills = await handler.clientGetAllSkills();
-          set(state => ({ resumeData: { ...state.resumeData, skills: fetchedSkills } }));
-          toast.success("Skills loaded!");
-        } catch (error) {
-          console.error("Failed to fetch skills:", error);
-          toast.error(`Failed to load skills: ${(error as Error).message || error}`);
-        }
-      },
-
-      saveAllSkills: async () => {
-        const handler = get().skillsHandler;
-        if (!handler) { toast.error("Skills service not ready. Cannot save skills."); return; }
-        try {
-          const currentSkills = get().resumeData.skills;
-          // Ganti handler.clientSave menjadi handler.clientBatchUpdateSkills
-          await handler.clientBatchUpdateSkills(currentSkills);
-          toast.success('All Skills saved successfully!');
-        } catch (error) {
-          console.error("Failed to save all skills:", error);
-          toast.error(`Failed to save all skills: ${(error as Error).message || error}`);
-        }
-      },
-
-      addSkill: async (skillData) => {
-        const handler = get().skillsHandler;
-        if (!handler) { toast.error("Skills service not ready. Cannot add skill."); return; }
-        try {
-          // Ganti handler.clientAdd menjadi handler.clientAddSkill
-          const newSkill = await handler.clientAddSkill(skillData);
-          set(state => ({ resumeData: { ...state.resumeData, skills: [...state.resumeData.skills, newSkill] } }));
-          toast.success('Skill added successfully!');
-        } catch (error) {
-          console.error("Failed to add skill:", error);
-          toast.error(`Failed to add skill: ${(error as Error).message || error}`);
-        }
-      },
-
-      updateSkill: (id, updatedFields) => {
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            skills: state.resumeData.skills.map((s) => (s.id === id ? { ...s, ...updatedFields } : s)),
-          },
-        }));
-        toast.info("Skill updated locally. Remember to call `saveAllSkills` to sync with backend.");
-      },
-
-      removeSkill: async (id) => {
-        const handler = get().skillsHandler;
-        if (!handler) { toast.error("Skills service not ready. Cannot remove skill."); return; }
-        try {
-          const success = await handler.clientDeleteById(id);
-          if (success) {
-            set(state => ({ resumeData: { ...state.resumeData, skills: state.resumeData.skills.filter(s => s.id !== id) } }));
-            toast.success('Skill removed successfully!');
-          } else {
-            toast.error('Failed to remove skill from backend.');
-          }
-        } catch (error) {
-          console.error("Error in removeSkill:", error);
-          toast.error(`Failed to remove skill: ${(error as Error).message || error}`);
-        }
-      },
-
-      updatePersonalInfo: (info) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            personalInfo: { ...state.resumeData.personalInfo, ...info },
-          },
-        })),
-
-
-      isPersonalInfoFilled: (): boolean => {
-        const {
-          fullName,
-          email,
-          phone,
-          location,
-          website,
-          bio,
-        } = get().resumeData.personalInfo;
-        return !!(fullName && email && phone && location && website && bio);
-      },
-
-      resetPersonalInfo: () => {
-        const emptyPersonalInfo: PersonalInfo = {
-          fullName: '',
-          email: '',
-          phone: '',
-          location: '',
-          website: '',
-          bio: '',
-          photoUrl: '',
-        };
-
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            personalInfo: emptyPersonalInfo,
-          },
-        }));
-      },
-
-      setWorkExperience: (experiences) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            workExperience: experiences,
-          },
-        })),
-
-      addWorkExperience: (experience) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            workExperience: [
-              ...state.resumeData.workExperience, experience,
-            ],
-          },
-        })),
-
-      updateWorkExperience: (id, experience) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            workExperience: state.resumeData.workExperience.map((exp) =>
-              exp.id === id ? { ...exp, ...experience } : exp
-            ),
-          },
-        })),
-
-      removeWorkExperience: (id) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            workExperience: state.resumeData.workExperience.filter((exp) => exp.id !== id),
-          },
-        })),
-
-      setEducation: (educations) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            education: educations,
-          },
-        })),
-
-      addEducation: (education) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            education: [
-              ...state.resumeData.education, education,
-            ],
-          },
-        })),
-
-      updateEducation: (id, education) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            education: state.resumeData.education.map((edu) =>
-              edu.id === id ? { ...edu, ...education } : edu
-            ),
-          },
-        })),
-
-      removeEducation: (id) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            education: state.resumeData.education.filter((edu) => edu.id !== id),
-          },
-        })),
-
-      // --- Implementasi addCertification yang diubah untuk Backend ---
-      addCertification: async (cert: Omit<Certification, 'id'>) => { // Perhatikan 'async'
-        const handler = get().certificationHandler;
-        if (!handler) {
-          console.error("Certification handler not initialized.");
-          throw new Error("Certification handler not initialized."); // Penting untuk throw error
-        }
-        try {
-          const newCertWithId = await handler.clientAdd(cert); // Panggil backend
-          set(state => ({
-            resumeData: {
-              ...state.resumeData,
-              certifications: [...state.resumeData.certifications, newCertWithId],
-            },
-          }));
-        } catch (error) {
-          console.error("Failed to add certification to backend:", error);
-          throw error; // Re-throw for component to handle
-        }
-      },
-
-      updateCertification: (id, certification) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            certifications: state.resumeData.certifications.map((cert) =>
-              cert.id === id ? { ...cert, ...certification } : cert
-            ),
-          },
-        })),
-
-      // --- Implementasi removeCertification yang diubah untuk Backend ---
-      removeCertification: async (id: string) => { // Perhatikan 'async'
-        const handler = get().certificationHandler;
-        if (!handler) {
-          console.error("Certification handler not initialized.");
-          throw new Error("Certification handler not initialized.");
-        }
-        try {
-          const success = await handler.clientDeleteById(id); // Panggil backend
-          if (success) {
-            set(state => ({
-              resumeData: {
-                ...state.resumeData,
-                certifications: state.resumeData.certifications.filter((cert) => cert.id !== id),
-              },
-            }));
-          } else {
-            throw new Error("Backend reported failure to delete certification.");
-          }
-        } catch (error) {
-          console.error("Failed to remove certification from backend:", error);
-          throw error;
-        }
-      },
-
-      addSocialLink: (socialLink) =>
-        set((state) => {
-
-          if (!isValidUrl(socialLink.url)) {
-            throw new Error(`Please provide a valid url`);
-          }
-
-          return {
-            resumeData: {
-              ...state.resumeData,
-              socialLinks: [
-                ...state.resumeData.socialLinks,
-                { ...socialLink, id: crypto.randomUUID() },
-              ],
-            },
-          }
-
-        }),
-
-      setSocialLink: ({ socialLinks }) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            socialLinks: socialLinks
-          },
-        })),
-
-      updateSocialLink: (id, socialLink) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            socialLinks: state.resumeData.socialLinks.map((link) =>
-              link.id === id ? { ...link, ...socialLink } : link
-            ),
-          },
-        })),
-
-      updateSocialLinkId: ({ lid, id }) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            socialLinks: state.resumeData.socialLinks.map((link) =>
-              link.lid === lid ? { ...link, id: id } : link
-            ),
-          },
-        })),
-
-      removeSocialLink: (id) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            socialLinks: state.resumeData.socialLinks.filter((link) => link.id !== id),
-          },
-        })),
-
-      setCustomSection: ({ sections }) => {
-        set((state) => {
-
-          return {
-            resumeData: {
-              ...state.resumeData,
-              customSections: sections
-            }
-          }
-
-        });
-      },
-
-      addCustomSection: (section) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            customSections: [
-              ...state.resumeData.customSections,
-              { ...section, id: crypto.randomUUID() },
-            ],
-          },
-        })),
-
-
-      updateCustomSectionId: (lid, newId) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            customSections: state.resumeData.customSections.map((section) =>
-              section.lid === lid ? { ...section, id: newId } : section
-            ),
-          },
-        })),
-
-      updateCustomSection: (id, section) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            customSections: state.resumeData.customSections.map((s) =>
-              s.id === id ? { ...s, ...section } : s
-            ),
-          },
-        })),
-
-      removeCustomSection: (id) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            customSections: state.resumeData.customSections.filter((s) => s.id !== id),
-          },
-        })),
-
-      addCustomSectionItem: (item) => {
-        set((state) => {
-
-          const sectionIndex = state.resumeData.customSections.findIndex((section) => section.id === item.sectionId);
-
-          if (sectionIndex === -1) {
-            throw new Error(`Custom section with id "${item.sectionId}" not found.`);
-          }
-
-          const section = state.resumeData.customSections[sectionIndex];
-
-          const updatedItems = [...section.items, item];
-
-          const updatedSection = {
-            ...section,
-            items: updatedItems,
-          };
-
-          const updatedSections = [...state.resumeData.customSections];
-
-          updatedSections[sectionIndex] = updatedSection;
-
-          return {
-            resumeData: {
-              ...state.resumeData,
-              customSections: updatedSections
-            },
-          };
-        });
-      },
-
-      updateCustomSectionItemId: ({ sectionId, lid, newId }) => {
-        set((state) => {
-
-          const sectionIndex = state.resumeData.customSections.findIndex((section) => section.id === sectionId);
-
-          if (sectionIndex === -1) {
-            throw new Error(`Custom section with id "${sectionId}" not found.`);
-          }
-
-          const section = state.resumeData.customSections[sectionIndex];
-
-          const itemIndex = section.items.findIndex((item) => item.lid === lid);
-
-          if (itemIndex === -1) {
-            throw new Error(`Item with id "${itemIndex}" not found.`);
-          }
-
-          const updatedItems = [...section.items];
-
-          updatedItems[itemIndex] = {
-            ...updatedItems[itemIndex],
-            id: newId
-          };
-
-          const updatedSection = {
-            ...section,
-            items: updatedItems,
-          };
-
-          const updatedSections = [...state.resumeData.customSections];
-
-          updatedSections[sectionIndex] = updatedSection;
-
-          return {
-            resumeData: {
-              ...state.resumeData,
-              customSections: updatedSections
-            },
-          };
-        });
-      },
-
-      getResumeLinkUrl: () => {
-        const path = get().resumeData.resumeLink?.path;
-
-        if (!path) {
-          return '';
-        }
-
-        return `${window.location.origin}/resume/${path}`;
-      },
-
-      setResumeLink: ({ resumeLink }) => {
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            resumeLink: resumeLink
-          }
-        }));
-      },
-
-      updateResumeLinkId: ({ lid, id }) => {
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            resumeLink: {
-              ...state.resumeData.resumeLink,
-              id: id,
-            }
-          }
-        }));
-      },
-
-      setTemplate: (template) => set({ selectedTemplate: template }),
-      setPrivacy: (isPrivate) => set({ isPrivate }),
-    }))
+    })
+  )
 );

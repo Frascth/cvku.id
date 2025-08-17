@@ -17,7 +17,7 @@ export function createEducationHandler(authClient: AuthClient) {
 
       return edus.map(edu => ({
         ...edu,
-        id: edu.id.toString(),
+        id: Number(edu.id),
         gpa: toOptionalTs(edu.gpa)
       }));
     },
@@ -32,7 +32,7 @@ export function createEducationHandler(authClient: AuthClient) {
 
         return {
             ...addedEdu,
-            id: addedEdu.id.toString(),
+            id: Number(addedEdu.id),
             gpa: toOptionalTs(addedEdu.gpa)
         };
     },
@@ -54,7 +54,7 @@ export function createEducationHandler(authClient: AuthClient) {
 
         const updatedEdus = result.map(edu => ({
             ...edu,
-            id: edu.id.toString(),
+            id: Number(edu.id),
             gpa: toOptionalTs(edu.gpa)
         }));
 
@@ -63,7 +63,7 @@ export function createEducationHandler(authClient: AuthClient) {
         return updatedEdus;
     },
 
-    clientDeleteById: async (id:string):Promise<boolean> => {
+    clientDeleteById: async (id:number):Promise<boolean> => {
       return await actor.clientDeleteById(BigInt(id));
     },
 
