@@ -14,8 +14,6 @@ actor CoverLeterService {
   type CoverLeterType = {
     companyName : Text;
     jobTitle : Text;
-    recipientName : Text;
-    tone : Text;
     jobDescription : Text;
   };
 
