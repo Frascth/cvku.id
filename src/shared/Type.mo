@@ -1,5 +1,6 @@
 import Text "mo:base/Text";
-import SkillLevel "./SkillLevel";
+import Result "mo:base/Result";
+import Bool "mo:base/Bool";
 
 module {
   // one to one
@@ -33,6 +34,40 @@ module {
   //   },
   // };
 
+  public type SkillLevel = { #Beginner; #Intermediate; #Advanced; #Expert };
+
+  public type Role = Text;
+
+  public let ROLE_CLIENT : Role = "client";
+
+  public let ROLE_ADMIN : Role = "admin";
+
+  public type CreatedResponse = {
+    lid:Nat;
+    id:Nat
+  };
+
+  public type UpdatedResponse = {
+    id:Nat
+  };
+
+  public type DeletedResponse = {
+    id:Nat
+  };
+  
+  public type SuccessResponse<T> = {
+    data: T;
+    message : Text;
+  };
+
+  public type ErrorResponse = {
+    message : Text;
+  };
+
+  // https://internetcomputer.org/docs/motoko/base/Result
+  // example of usage in src/custom_section_service/main.mo
+  public type Response<T> = Result.Result<SuccessResponse<T>, ErrorResponse>;
+
   public type PersonalInfo = {
     fullName : Text;
     email : Text;
@@ -64,7 +99,7 @@ module {
   public type Skill = {
     id : Text;
     name : Text;
-    level : SkillLevel.SkillLevel;
+    level : SkillLevel;
   };
 
   public type Certification = {
@@ -76,17 +111,18 @@ module {
   };
 
   public type CustomSectionItem = {
-    id : Text;
+    sectionId : Nat;
+    id : Nat;
     title : Text;
-    subtitle : ?Text;
     description : Text;
+    subtitle : ?Text;
     date : ?Text;
   };
 
   public type CustomSection = {
-    id : Text;
+    id : Nat;
     name : Text;
-    items : [CustomSectionItem];
+    items: [CustomSectionItem];
   };
 
   public type CoverLetterBuilder = {
@@ -106,15 +142,57 @@ module {
   };
 
   public type SocialLink = {
-    id : Text;
+    id : Nat;
     platform : Text;
     url : Text;
   };
 
-  public type PublicLink = {
+  public type ResumeLink = {
     id : Nat;
-    link : Text;
+    path : Text;
+    isPublic: Bool;
   };
+
+  public type ATSCheck = {
+    name : Text;
+    passed : Bool;
+    tip : Text;
+  };
+
+  public type ATSCategory = {
+    category : Text;
+    checks : [ATSCheck];
+  };
+
+  public type ATSReport = {
+    score : Nat;
+    categories : [ATSCategory];
+  };
+
+  // === Resume Score Types ===
+  public type ScoreCategory = {
+    name : Text;
+    score : Nat;
+    maxScore : Nat;
+    suggestions : [Text];
+  };
+
+  public type Priority = { #High; #Medium; #Low };
+
+  public type Improvement = {
+    priority : Priority;
+    title : Text;
+    description : Text;
+    example : Text;
+  };
+
+  public type ResumeScoreReport = {
+    overall : Nat;
+    rankPercentile : Nat;         // 0..100
+    categories : [ScoreCategory];
+    improvements : [Improvement];
+  };
+
 
   // resume_service/main.mo assemble all
   public type Resume = {
@@ -126,4 +204,4 @@ module {
     socialLinks : [SocialLink];
     customSections : [CustomSection];
   };
-}
+};

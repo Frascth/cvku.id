@@ -1,7 +1,43 @@
-import { create } from 'zustand';
+// useResumeStore.ts
+import { create, StateCreator } from "zustand";
+import { devtools, persist, createJSONStorage } from "zustand/middleware";
+import { AuthClient } from "@dfinity/auth-client";
+import { createCertificationHandler } from "../lib/certificationHandler";
+import { createSkillsHandler } from "../lib/skillsHandler";
+import { isValidUrl } from "@/lib/utils";
+
+/* =========================
+ * Types
+ * ========================= */
+export type SkillLevel = "Beginner" | "Intermediate" | "Advanced" | "Expert";
+
+// FE-only types (untuk Resume Score)
+export type ScorePriority = "High" | "Medium" | "Low";
+export interface ScoreCategoryFE {
+  name: string;
+  score: number;
+  maxScore: number;
+  suggestions: string[];
+}
+export interface ImprovementFE {
+  title: string;
+  description: string;
+  example: string;
+  priority: ScorePriority;
+}
+
+export interface PersonalInfo {
+  fullName: string;
+  email: string;
+  phone: string;
+  location: string;
+  website: string;
+  bio: string;
+  photoUrl?: string;
+}
 
 export interface WorkExperience {
-  id: string;
+  id: number; // nat
   jobTitle: string;
   company: string;
   startDate: string;
@@ -11,7 +47,7 @@ export interface WorkExperience {
 }
 
 export interface Education {
-  id: string;
+  id: number; // nat
   degree: string;
   institution: string;
   graduationDate: string;
@@ -19,13 +55,13 @@ export interface Education {
 }
 
 export interface Skill {
-  id: string;
+  id: string; // text
   name: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+  level: SkillLevel;
 }
 
 export interface Certification {
-  id: string;
+  id: string; // text
   name: string;
   issuer: string;
   date: string;
@@ -33,13 +69,16 @@ export interface Certification {
 }
 
 export interface SocialLink {
-  id: string;
+  lid?: number; // local-only
+  id: number;   // nat
   platform: string;
   url: string;
 }
 
 export interface CustomSectionItem {
-  id: string;
+  lid?: number; // local-only
+  id: number;   // nat
+  sectionId: number; // nat
   title: string;
   subtitle?: string;
   description: string;
@@ -47,130 +86,392 @@ export interface CustomSectionItem {
 }
 
 export interface CustomSection {
-  id: string;
+  lid?: number; // local-only
+  id: number;   // nat
   name: string;
   items: CustomSectionItem[];
 }
 
+export interface ResumeLink {
+  lid?: string;
+  id: number;
+  path: string;
+  isPublic: boolean;
+}
+
 export interface ResumeData {
-  personalInfo: {
-    fullName: string;
-    email: string;
-    phone: string;
-    location: string;
-    website: string;
-    bio: string;
-    photoUrl?: string;
-  };
+  personalInfo: PersonalInfo;
   workExperience: WorkExperience[];
   education: Education[];
   skills: Skill[];
   certifications: Certification[];
   socialLinks: SocialLink[];
   customSections: CustomSection[];
+  resumeLink?: ResumeLink;
 }
 
-interface ResumeStore {
+export interface ATSCheck { name: string; passed: boolean; tip: string }
+export interface ATSCategory { category: string; checks: ATSCheck[] }
+
+export interface ResumeStore {
   resumeData: ResumeData;
-  selectedTemplate: 'minimal' | 'modern' | 'professional';
+  selectedTemplate: "minimal" | "modern" | "professional";
   isPrivate: boolean;
-  updatePersonalInfo: (info: Partial<ResumeData['personalInfo']>) => void;
-  addWorkExperience: (experience: Omit<WorkExperience, 'id'>) => void;
-  updateWorkExperience: (id: string, experience: Partial<WorkExperience>) => void;
-  removeWorkExperience: (id: string) => void;
-  addEducation: (education: Omit<Education, 'id'>) => void;
-  updateEducation: (id: string, education: Partial<Education>) => void;
-  removeEducation: (id: string) => void;
-  addSkill: (skill: Omit<Skill, 'id'>) => void;
-  updateSkill: (id: string, skill: Partial<Skill>) => void;
+  hasHydrated: boolean;
+  currentPrincipal: string | null;
+
+  // --- ATS report ---
+  atsScore: number | null;
+  atsCategories: ATSCategory[];
+  setAtsReport: (r: { score: number; categories: ATSCategory[] }) => void;
+  clearAts: () => void;
+
+  // --- Resume Score ---
+  resumeScoreOverall: number | null;
+  resumeScoreCategories: ScoreCategoryFE[];
+  resumeScoreImprovements: ImprovementFE[];
+  setResumeScore: (r: {
+    overall: number;
+    categories: ScoreCategoryFE[];
+    improvements: ImprovementFE[];
+  }) => void;
+  clearResumeScore: () => void;
+
+  // handlers
+  certificationHandler: ReturnType<typeof createCertificationHandler> | null;
+  skillsHandler: ReturnType<typeof createSkillsHandler> | null;
+  initializeHandlers: (authClient: AuthClient) => void;
+
+  // Skills
+  setSkills: (skills: Skill[]) => void;
+  addSkill: (skill: Omit<Skill, "id"> | Skill) => void;
+  updateSkill: (id: string, patch: Partial<Skill>) => void;
   removeSkill: (id: string) => void;
-  addCertification: (certification: Omit<Certification, 'id'>) => void;
-  updateCertification: (id: string, certification: Partial<Certification>) => void;
-  removeCertification: (id: string) => void;
-  addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => void;
-  updateSocialLink: (id: string, socialLink: Partial<SocialLink>) => void;
-  removeSocialLink: (id: string) => void;
-  addCustomSection: (section: Omit<CustomSection, 'id'>) => void;
-  updateCustomSection: (id: string, section: Partial<CustomSection>) => void;
-  removeCustomSection: (id: string) => void;
-  setTemplate: (template: 'minimal' | 'modern' | 'professional') => void;
+  fetchSkills: () => Promise<void>;
+  saveAllSkills: () => Promise<void>;
+
+  // Certifications
+  fetchCertifications: () => Promise<void>;
+  saveAllCertifications: () => Promise<void>;
+  addCertification: (cert: Omit<Certification, "id">) => Promise<void>;
+  updateCertification: (id: string, cert: Partial<Omit<Certification, "id">>) => void;
+  removeCertification: (id: string) => Promise<void>;
+
+  // Personal info
+  updatePersonalInfo: (info: Partial<PersonalInfo>) => void;
+  isPersonalInfoFilled: () => boolean;
+  resetPersonalInfo: () => void;
+
+  // Work experience
+  setWorkExperience: (experiences: WorkExperience[]) => void;
+  addWorkExperience: (experience: WorkExperience) => void;
+  updateWorkExperience: (id: number, experience: Partial<WorkExperience>) => void;
+  removeWorkExperience: (id: number) => void;
+
+  // Education
+  setEducation: (experiences: Education[]) => void;
+  addEducation: (education: Education) => void;
+  updateEducation: (id: number, education: Partial<Education>) => void;
+  removeEducation: (id: number) => void;
+
+  // Social links
+  addSocialLink: (socialLink: Omit<SocialLink, "id">) => void;
+  setSocialLink: (params: { socialLinks: SocialLink[] }) => void;
+  updateSocialLink: (id: number, socialLink: Partial<SocialLink>) => void;
+  updateSocialLinkId: (params: { lid: number; id: number }) => void;
+  removeSocialLink: (id: number) => void;
+
+  // Custom sections
+  setCustomSection: (params: { sections: CustomSection[] }) => void;
+  addCustomSection: (section: Omit<CustomSection, "id">) => void;
+  updateCustomSectionId: (lid: number, id: number) => void;
+  updateCustomSection: (id: number, section: Partial<CustomSection>) => void;
+  removeCustomSection: (id: number) => void;
+  addCustomSectionItem: (item: CustomSectionItem) => void;
+  updateCustomSectionItemId: (params: { sectionId: number; lid: number; newId: number }) => void;
+
+  // Resume link
+  setResumeLink: (params: { resumeLink: ResumeLink }) => void;
+  updateResumeLinkId: (params: { lid: number; id: number }) => void;
+  getResumeLinkUrl: () => string;
+
+  // misc
+  setTemplate: (template: "minimal" | "modern" | "professional") => void;
   setPrivacy: (isPrivate: boolean) => void;
 }
 
+/* =========================
+ * Initial state
+ * ========================= */
 const initialResumeData: ResumeData = {
   personalInfo: {
-    fullName: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    location: 'San Francisco, CA',
-    website: 'https://johndoe.dev',
-    bio: 'Passionate software engineer with 5+ years of experience in full-stack development. Specialized in React, Node.js, and cloud technologies.',
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    website: "",
+    bio: "",
   },
-  workExperience: [
-    {
-      id: '1',
-      jobTitle: 'Senior Software Engineer',
-      company: 'Tech Corp',
-      startDate: '2022-01',
-      endDate: '',
-      current: true,
-      description: 'Led development of scalable web applications using React and Node.js. Mentored junior developers and improved system performance by 40%.',
-    },
-    {
-      id: '2',
-      jobTitle: 'Software Engineer',
-      company: 'StartupXYZ',
-      startDate: '2020-03',
-      endDate: '2021-12',
-      current: false,
-      description: 'Built responsive frontend applications and RESTful APIs. Collaborated with design team to implement pixel-perfect UIs.',
-    },
-  ],
-  education: [
-    {
-      id: '1',
-      degree: 'Bachelor of Science in Computer Science',
-      institution: 'University of California, Berkeley',
-      graduationDate: '2020-05',
-      gpa: '3.8',
-    },
-  ],
-  skills: [
-    { id: '1', name: 'JavaScript', level: 'Expert' },
-    { id: '2', name: 'React', level: 'Expert' },
-    { id: '3', name: 'Node.js', level: 'Advanced' },
-    { id: '4', name: 'TypeScript', level: 'Advanced' },
-    { id: '5', name: 'Python', level: 'Intermediate' },
-  ],
-  certifications: [
-    {
-      id: '1',
-      name: 'AWS Certified Developer',
-      issuer: 'Amazon Web Services',
-      date: '2023-06',
-      credentialId: 'AWS-DEV-2023-001',
-    },
-  ],
-  socialLinks: [
-    {
-      id: '1',
-      platform: 'LinkedIn',
-      url: 'https://linkedin.com/in/johndoe',
-    },
-    {
-      id: '2',
-      platform: 'GitHub',
-      url: 'https://github.com/johndoe',
-    },
-  ],
+  workExperience: [],
+  education: [],
+  skills: [],
+  certifications: [],
+  socialLinks: [],
   customSections: [],
+  resumeLink: {
+    lid: "",
+    id: 0,
+    path: "",
+    isPublic: true,
+  },
 };
 
-export const useResumeStore = create<ResumeStore>((set) => ({
-  resumeData: initialResumeData,
-  selectedTemplate: 'modern',
-  isPrivate: false,
+// (opsional) helper tak terpakai, aman dibiarkan
+const mergeById = <T extends { id: string }>(local: T[], server: T[]) => {
+  const map = new Map<string, T>();
+  for (const s of local) map.set(s.id, s);
+  for (const s of server) map.set(s.id, s);
+  return Array.from(map.values());
+};
 
+/* =========================
+ * Creator (tanpa middleware tags)
+ * ========================= */
+type SC = StateCreator<ResumeStore, [], []>;
+
+const createStoreImpl: SC = (set, get) => ({
+  // ===== default state =====
+  resumeData: initialResumeData,
+  selectedTemplate: "modern",
+  isPrivate: false,
+  certificationHandler: null,
+  skillsHandler: null,
+  hasHydrated: false,
+  currentPrincipal: null,
+
+  // ===== ATS =====
+  atsScore: null,
+  atsCategories: [],
+  setAtsReport: ({ score, categories }) =>
+    set((s) => ({ ...s, atsScore: score, atsCategories: categories })),
+  clearAts: () =>
+    set((s) => ({ ...s, atsScore: null, atsCategories: [] })),
+
+  // ===== Resume Score =====
+  resumeScoreOverall: null,
+  resumeScoreCategories: [],
+  resumeScoreImprovements: [],
+  setResumeScore: ({ overall, categories, improvements }) =>
+    set((s) => ({
+      ...s,
+      resumeScoreOverall: overall,
+      resumeScoreCategories: categories,
+      resumeScoreImprovements: improvements,
+    })),
+  clearResumeScore: () =>
+    set((s) => ({
+      ...s,
+      resumeScoreOverall: null,
+      resumeScoreCategories: [],
+      resumeScoreImprovements: [],
+    })),
+
+  // ===== handlers init =====
+  initializeHandlers: (authClient) => {
+    try {
+      const pid = authClient.getIdentity().getPrincipal().toText();
+      const prev = get().currentPrincipal;
+
+      // principal berubah → bersihkan state per-user
+      if (!prev || prev !== pid) {
+        set((state) => ({
+          ...state,
+          currentPrincipal: pid,
+          atsScore: null,
+          atsCategories: [],
+          resumeScoreOverall: null,
+          resumeScoreCategories: [],
+          resumeScoreImprovements: [],
+          resumeData: {
+            ...state.resumeData,
+            skills: [],
+            // jika ingin, kosongkan koleksi lain juga saat ganti akun:
+            // certifications: [], socialLinks: [], customSections: []
+          },
+        }));
+      }
+
+      // set handlers
+      set({
+        certificationHandler: createCertificationHandler(authClient),
+        skillsHandler: createSkillsHandler(authClient),
+      });
+
+      // fetch data server untuk principal ini (handler sudah siap)
+      void get().fetchSkills?.();
+      void get().fetchCertifications?.();
+    } catch (error) {
+      console.error("Failed to initialize handlers:", error);
+    }
+  },
+
+  /* =========================
+   * Skills
+   * ========================= */
+  setSkills: (skills) =>
+    set((state) => ({ resumeData: { ...state.resumeData, skills } })),
+
+  fetchSkills: async () => {
+    const handler = get().skillsHandler;
+    if (!handler) throw new Error("Skills handler not initialized.");
+    try {
+      const fetched = await handler.clientGetAll(); // Skill[]
+      set((state) => ({
+        resumeData: { ...state.resumeData, skills: fetched },
+      }));
+    } catch (err) {
+      console.error("Failed to fetch skills:", err);
+      throw err;
+    }
+  },
+
+  saveAllSkills: async () => {
+    const handler = get().skillsHandler;
+    if (!handler) throw new Error("Skills handler not initialized.");
+    try {
+      const saved = await handler.clientSave(get().resumeData.skills); // Skill[]
+      set((state) => ({
+        resumeData: { ...state.resumeData, skills: saved },
+      }));
+    } catch (err) {
+      console.error("Failed to save all skills:", err);
+      throw err;
+    }
+  },
+
+  addSkill: async (skill) => {
+    const handler = get().skillsHandler;
+    if (!handler) throw new Error("Skills handler not initialized.");
+    try {
+      const newSkill = await handler.clientAdd(
+        "id" in skill ? { name: skill.name, level: skill.level } : skill
+      );
+      set((state) => ({
+        resumeData: {
+          ...state.resumeData,
+          skills: [...state.resumeData.skills, newSkill],
+        },
+      }));
+    } catch (err) {
+      console.error("Failed to add skill:", err);
+      throw err;
+    }
+  },
+
+  updateSkill: (id, patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        skills: state.resumeData.skills.map((s) =>
+          s.id === id ? { ...s, ...patch } : s
+        ),
+      },
+    })),
+
+  removeSkill: async (id) => {
+    const handler = get().skillsHandler;
+    if (!handler) throw new Error("Skills handler not initialized.");
+    try {
+      const ok = await handler.clientDeleteById(id);
+      if (!ok) throw new Error("Backend reported failure to delete skill.");
+      set((state) => ({
+        resumeData: {
+          ...state.resumeData,
+          skills: state.resumeData.skills.filter((s) => s.id !== id),
+        },
+      }));
+    } catch (err) {
+      console.error("Failed to remove skill:", err);
+      throw err;
+    }
+  },
+
+  /* =========================
+   * Certifications
+   * ========================= */
+  fetchCertifications: async () => {
+    const handler = get().certificationHandler;
+    if (!handler) throw new Error("Certification handler not initialized.");
+    try {
+      const fetched = await handler.clientGetAll();
+      set((state) => ({
+        resumeData: { ...state.resumeData, certifications: fetched as Certification[] },
+      }));
+    } catch (error) {
+      console.error("Failed to fetch certifications:", error);
+      throw error;
+    }
+  },
+
+  saveAllCertifications: async () => {
+    const handler = get().certificationHandler;
+    if (!handler) throw new Error("Certification handler not initialized.");
+    try {
+      await handler.clientSave(get().resumeData.certifications);
+    } catch (error) {
+      console.error("Failed to save all certifications:", error);
+      throw error;
+    }
+  },
+
+  addCertification: async (cert) => {
+    const handler = get().certificationHandler;
+    if (!handler) throw new Error("Certification handler not initialized.");
+    try {
+      const newCert = await handler.clientAdd(cert);
+      set((state) => ({
+        resumeData: {
+          ...state.resumeData,
+          certifications: [...state.resumeData.certifications, newCert],
+        },
+      }));
+    } catch (error) {
+      console.error("Failed to add certification:", error);
+      throw error;
+    }
+  },
+
+  updateCertification: (id, patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        certifications: state.resumeData.certifications.map((c) =>
+          c.id === id ? { ...c, ...patch } : c
+        ),
+      },
+    })),
+
+  removeCertification: async (id) => {
+    const handler = get().certificationHandler;
+    if (!handler) throw new Error("Certification handler not initialized.");
+    try {
+      const ok = await handler.clientDeleteById(id);
+      if (!ok) throw new Error("Backend reported failure to delete certification.");
+      set((state) => ({
+        resumeData: {
+          ...state.resumeData,
+          certifications: state.resumeData.certifications.filter((c) => c.id !== id),
+        },
+      }));
+    } catch (error) {
+      console.error("Failed to remove certification:", error);
+      throw error;
+    }
+  },
+
+  /* =========================
+   * Personal Info
+   * ========================= */
   updatePersonalInfo: (info) =>
     set((state) => ({
       resumeData: {
@@ -179,23 +480,47 @@ export const useResumeStore = create<ResumeStore>((set) => ({
       },
     })),
 
+  isPersonalInfoFilled: () => {
+    const { fullName, email, phone, location, website, bio } = get().resumeData.personalInfo;
+    return !!(fullName && email && phone && location && website && bio);
+  },
+
+  resetPersonalInfo: () =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        personalInfo: {
+          fullName: "",
+          email: "",
+          phone: "",
+          location: "",
+          website: "",
+          bio: "",
+          photoUrl: "",
+        },
+      },
+    })),
+
+  /* =========================
+   * Work Experience
+   * ========================= */
+  setWorkExperience: (experiences) =>
+    set((state) => ({ resumeData: { ...state.resumeData, workExperience: experiences } })),
+
   addWorkExperience: (experience) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
-        workExperience: [
-          ...state.resumeData.workExperience,
-          { ...experience, id: Date.now().toString() },
-        ],
+        workExperience: [...state.resumeData.workExperience, experience],
       },
     })),
 
-  updateWorkExperience: (id, experience) =>
+  updateWorkExperience: (id, patch) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
         workExperience: state.resumeData.workExperience.map((exp) =>
-          exp.id === id ? { ...exp, ...experience } : exp
+          exp.id === id ? { ...exp, ...patch } : exp
         ),
       },
     })),
@@ -208,23 +533,26 @@ export const useResumeStore = create<ResumeStore>((set) => ({
       },
     })),
 
+  /* =========================
+   * Education
+   * ========================= */
+  setEducation: (educations) =>
+    set((state) => ({ resumeData: { ...state.resumeData, education: educations } })),
+
   addEducation: (education) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
-        education: [
-          ...state.resumeData.education,
-          { ...education, id: Date.now().toString() },
-        ],
+        education: [...state.resumeData.education, education],
       },
     })),
 
-  updateEducation: (id, education) =>
+  updateEducation: (id, patch) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
         education: state.resumeData.education.map((edu) =>
-          edu.id === id ? { ...edu, ...education } : edu
+          edu.id === id ? { ...edu, ...patch } : edu
         ),
       },
     })),
@@ -237,76 +565,41 @@ export const useResumeStore = create<ResumeStore>((set) => ({
       },
     })),
 
-  addSkill: (skill) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        skills: [...state.resumeData.skills, { ...skill, id: Date.now().toString() }],
-      },
-    })),
-
-  updateSkill: (id, skill) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        skills: state.resumeData.skills.map((s) => (s.id === id ? { ...s, ...skill } : s)),
-      },
-    })),
-
-  removeSkill: (id) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        skills: state.resumeData.skills.filter((skill) => skill.id !== id),
-      },
-    })),
-
-  addCertification: (certification) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        certifications: [
-          ...state.resumeData.certifications,
-          { ...certification, id: Date.now().toString() },
-        ],
-      },
-    })),
-
-  updateCertification: (id, certification) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        certifications: state.resumeData.certifications.map((cert) =>
-          cert.id === id ? { ...cert, ...certification } : cert
-        ),
-      },
-    })),
-
-  removeCertification: (id) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        certifications: state.resumeData.certifications.filter((cert) => cert.id !== id),
-      },
-    })),
-
+  /* =========================
+   * Social Links
+   * ========================= */
   addSocialLink: (socialLink) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        socialLinks: [
-          ...state.resumeData.socialLinks,
-          { ...socialLink, id: Date.now().toString() },
-        ],
-      },
-    })),
+    set((state) => {
+      if (!isValidUrl(socialLink.url)) {
+        throw new Error("Please provide a valid url");
+      }
+      return {
+        resumeData: {
+          ...state.resumeData,
+          socialLinks: [...state.resumeData.socialLinks, { ...socialLink, id: Date.now() }],
+        },
+      };
+    }),
 
-  updateSocialLink: (id, socialLink) =>
+  setSocialLink: ({ socialLinks }) =>
+    set((state) => ({ resumeData: { ...state.resumeData, socialLinks } })),
+
+  updateSocialLink: (id, patch) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
         socialLinks: state.resumeData.socialLinks.map((link) =>
-          link.id === id ? { ...link, ...socialLink } : link
+          link.id === id ? { ...link, ...patch } : link
+        ),
+      },
+    })),
+
+  updateSocialLinkId: ({ lid, id }) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        socialLinks: state.resumeData.socialLinks.map((link) =>
+          link.lid === lid ? { ...link, id } : link
         ),
       },
     })),
@@ -315,27 +608,40 @@ export const useResumeStore = create<ResumeStore>((set) => ({
     set((state) => ({
       resumeData: {
         ...state.resumeData,
-        socialLinks: state.resumeData.socialLinks.filter((link) => link.id !== id),
+        socialLinks: state.resumeData.socialLinks.filter((l) => l.id !== id),
       },
     })),
+
+  /* =========================
+   * Custom Sections
+   * ========================= */
+  setCustomSection: ({ sections }) =>
+    set((state) => ({ resumeData: { ...state.resumeData, customSections: sections } })),
 
   addCustomSection: (section) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
-        customSections: [
-          ...state.resumeData.customSections,
-          { ...section, id: Date.now().toString() },
-        ],
+        customSections: [...state.resumeData.customSections, { ...section, id: Date.now() }],
       },
     })),
 
-  updateCustomSection: (id, section) =>
+  updateCustomSectionId: (lid, newId) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        customSections: state.resumeData.customSections.map((section) =>
+          section.lid === lid ? { ...section, id: newId } : section
+        ),
+      },
+    })),
+
+  updateCustomSection: (id, patch) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
         customSections: state.resumeData.customSections.map((s) =>
-          s.id === id ? { ...s, ...section } : s
+          s.id === id ? { ...s, ...patch } : s
         ),
       },
     })),
@@ -348,6 +654,110 @@ export const useResumeStore = create<ResumeStore>((set) => ({
       },
     })),
 
+  addCustomSectionItem: (item) =>
+    set((state) => {
+      const idx = state.resumeData.customSections.findIndex((s) => s.id === Number(item.sectionId));
+      if (idx === -1) throw new Error(`Custom section with id "${item.sectionId}" not found.`);
+      const section = state.resumeData.customSections[idx];
+      const updatedSection = { ...section, items: [...section.items, item] };
+      const updatedSections = [...state.resumeData.customSections];
+      updatedSections[idx] = updatedSection;
+      return { resumeData: { ...state.resumeData, customSections: updatedSections } };
+    }),
+
+  updateCustomSectionItemId: ({ sectionId, lid, newId }) =>
+    set((state) => {
+      const sidx = state.resumeData.customSections.findIndex((s) => s.id === sectionId);
+      if (sidx === -1) throw new Error(`Custom section with id "${sectionId}" not found.`);
+      const section = state.resumeData.customSections[sidx];
+      const iidx = section.items.findIndex((it) => it.lid === lid);
+      if (iidx === -1) throw new Error(`Item with lid "${lid}" not found.`);
+      const items = [...section.items];
+      items[iidx] = { ...items[iidx], id: newId };
+      const updatedSection = { ...section, items };
+      const updatedSections = [...state.resumeData.customSections];
+      updatedSections[sidx] = updatedSection;
+      return { resumeData: { ...state.resumeData, customSections: updatedSections } };
+    }),
+
+  /* =========================
+   * Resume Link
+   * ========================= */
+  getResumeLinkUrl: () => {
+    const path = get().resumeData.resumeLink?.path;
+    if (!path) return "";
+    return `${window.location.origin}/resume/${path}`;
+  },
+
+  setResumeLink: ({ resumeLink }) =>
+    set((state) => ({ resumeData: { ...state.resumeData, resumeLink } })),
+
+  updateResumeLinkId: ({ lid, id }) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        resumeLink: { ...state.resumeData.resumeLink, id },
+      },
+    })),
+
+  /* =========================
+   * misc
+   * ========================= */
   setTemplate: (template) => set({ selectedTemplate: template }),
   setPrivacy: (isPrivate) => set({ isPrivate }),
-}));
+});
+
+/* =========================
+ * Persisted slice typing
+ * ========================= */
+type PersistedSlice = Pick<
+  ResumeStore,
+  | "resumeData"
+  | "selectedTemplate"
+  | "isPrivate"
+  | "currentPrincipal"
+  | "atsScore"
+  | "atsCategories"
+  | "resumeScoreOverall"
+  | "resumeScoreCategories"
+  | "resumeScoreImprovements"
+>;
+
+/* =========================
+ * Export store (devtools + persist)
+ * ========================= */
+export const useResumeStore = create<ResumeStore>()(
+  devtools(
+    persist<ResumeStore, [], [], PersistedSlice>(createStoreImpl, {
+      name: "resume-store",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s): PersistedSlice => ({
+        resumeData: s.resumeData,
+        selectedTemplate: s.selectedTemplate,
+        isPrivate: s.isPrivate,
+        currentPrincipal: s.currentPrincipal,
+        atsScore: s.atsScore,
+        atsCategories: s.atsCategories,
+        resumeScoreOverall: s.resumeScoreOverall,
+        resumeScoreCategories: s.resumeScoreCategories,
+        resumeScoreImprovements: s.resumeScoreImprovements,
+      }),
+      onRehydrateStorage: () => (state, error) => {
+        if (!error && state) {
+          state.hasHydrated = true;
+
+          // safety default utk versi lama
+          if (state.atsScore === undefined) state.atsScore = null;
+          if (!state.atsCategories) state.atsCategories = [];
+          if (state.resumeScoreOverall === undefined) state.resumeScoreOverall = null;
+          if (!state.resumeScoreCategories) state.resumeScoreCategories = [];
+          if (!state.resumeScoreImprovements) state.resumeScoreImprovements = [];
+          if (state.currentPrincipal === undefined) state.currentPrincipal = null;
+
+          // ⛔️ Jangan fetch di sini (handlers belum di-init).
+          // Fetch dilakukan di initializeHandlers setelah handler tersedia.
+        }
+      },
+    })
+  )
+);

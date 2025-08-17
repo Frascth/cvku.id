@@ -3,13 +3,14 @@
     "internet_identity_service": {
       "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
       "type": "custom",
-      "specified_id": "rdmx6-jaaaa-aaaaa-aaadq-cai",
+      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz",
       "remote": {
         "id": {
-          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai",
+          "playground": "rdmx6-jaaaa-aaaaa-aaadq-cai"
         }
       },
-      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz"
+      "frontend": {}
     },
     "llm_service": {
       "candid": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.did",
@@ -17,32 +18,70 @@
       "specified_id": "w36hm-eqaaa-aaaal-qr76a-cai",
       "remote": {
         "id": {
-          "ic": "w36hm-eqaaa-aaaal-qr76a-cai"
+          "ic": "w36hm-eqaaa-aaaal-qr76a-cai",
+          "playground": "w36hm-eqaaa-aaaal-qr76a-cai"
         }
       },
       "wasm": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.wasm"
     },
+    
     "auth_service": {
       "type": "motoko",
-      "main": "src/auth_service/main.mo",
-      "dependencies": [
-        "internet_identity_service"
-      ]
+      "main": "src/auth_service/main.mo"
+    },
+    "resume_service": {
+      "type": "motoko",
+      "main": "src/resume_service/main.mo"
+    },
+    "personal_info_service": {
+      "type": "motoko",
+      "main": "src/personal_info_service/main.mo"
     },
     "work_experience_service": {
       "type": "motoko",
-      "main": "src/work_experience_service/main.mo",
-      "dependencies": [
-        "llm_service"
-      ]
+      "main": "src/work_experience_service/main.mo"
     },
     "education_service": {
       "type": "motoko",
-      "main": "src/education_service/main.mo",
-      "dependencies": [
-        "llm_service"
-      ]
+      "main": "src/education_service/main.mo"
     },
+
+    "certification_service": {
+      "type": "motoko",
+      "main": "src/certification_service/main.mo"
+    },
+
+    "skills_service": { 
+      "type": "motoko",
+      "main": "src/skills_service/main.mo"
+    },
+
+    "custom_section_service": { 
+      "type": "motoko",
+      "main": "src/custom_section_service/main.mo"
+    },
+
+    "ats_service": {
+      "type": "motoko",
+      "main": "src/ats_service/main.mo"
+    },
+
+    "social_service": {
+      "type": "motoko",
+      "main": "src/social_service/main.mo"
+    },
+
+    "coverleter_service": {
+      "type": "motoko",
+      "main": "src/coverleter_service/main.mo",
+      "dependencies": ["llm_service"]
+    },
+
+    "resume_score_service": {
+    "type": "motoko",
+    "main": "src/resume_score_service/main.mo"
+    },
+
     "frontend": {
       "type": "assets",
       "source": [
@@ -50,8 +89,18 @@
       ],
       "dependencies": [
         "auth_service",
+        "personal_info_service",
         "work_experience_service",
-        "education_service"
+        "education_service",
+        "certification_service",
+        "skills_service",
+        "custom_section_service",
+        "ats_service",
+        "social_service",
+        "coverleter_service",
+        "llm_service",
+        "resume_service",
+        "resume_score_service"
       ]
     }
   },

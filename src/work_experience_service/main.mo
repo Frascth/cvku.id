@@ -1,166 +1,187 @@
 import Map "mo:map/Map";
 import Principal "mo:base/Principal";
 import Iter "mo:base/Iter";
-import Array "mo:base/Array";
 import Text "mo:base/Text";
+import Error "mo:base/Error";
+import Nat "mo:base/Nat";
 import { nhash } "mo:map/Map";
 import LLM "mo:llm";
+import Type "../shared/Type";
 
-actor WorkExperienceService {
-    
-    public type WorkExperience = {
-        id: Nat;
-        jobTitle: Text;
-        company: Text;
-        startDate: Text;
-        endDate: Text;
-        current: Bool;
-        description: Text;
+persistent actor WorkExperienceService {
+
+  private var workExpByPrincipal = Map.new<Principal, Map.Map<Nat, Type.WorkExperience>>();
+
+  private var nextId : Nat = 0;
+
+  public shared query ({ caller }) func clientGetAll() : async Type.Response<[Type.WorkExperience]> {
+    switch (Map.get(workExpByPrincipal, Map.phash, caller)) {
+      case (?experiencesMap) {
+        return #ok({
+          data = Iter.toArray(Map.vals(experiencesMap));
+          message = "Success get work experienc.";
+        });
+      };
+      case null {
+        return #ok({
+          data = [];
+          message = "Success get work experienc.";
+        });
+      };
+    };
+  };
+
+  public shared ({ caller }) func clientAdd(
+    request : {
+      lid : Text;
+      jobTitle : Text;
+      company : Text;
+      startDate : Text;
+      endDate : Text;
+      current : Bool;
+      description : Text;
+    }
+  ) : async Type.Response<Type.CreatedResponse> {
+    nextId += 1;
+
+    let newExperience : Type.WorkExperience = {
+      id = nextId;
+      jobTitle = request.jobTitle;
+      company = request.company;
+      startDate = request.startDate;
+      endDate = request.endDate;
+      current = request.current;
+      description = request.description;
     };
 
-    private stable var workExpByPrincipal = Map.new<Principal, Map.Map<Nat, WorkExperience>>();
-
-    private stable var nextId: Nat = 0;
-
-    public shared query ({ caller }) func clientGetAll() : async [WorkExperience] {
-        switch (Map.get(workExpByPrincipal, Map.phash, caller)) {
-            case (?experiencesMap) {
-                return Iter.toArray(Map.vals(experiencesMap));
-            };
-            case null {
-                return [];
-            };
-        };
+    // Get existing map or create a new one
+    let workExperiencesById = switch (Map.get(workExpByPrincipal, Map.phash, caller)) {
+      case (?workExps) workExps;
+      case null Map.new<Nat, Type.WorkExperience>();
     };
 
-    // caller is resume_service
-    public shared query ({ caller = _ }) func getAllByClient(client:Principal) : async [WorkExperience] {
-        switch (Map.get(workExpByPrincipal, Map.phash, client)) {
-            case (?experiencesMap) {
-                return Iter.toArray(Map.vals(experiencesMap));
-            };
-            case null {
-                return [];
-            };
-        };
+    Map.set(workExperiencesById, nhash, newExperience.id, newExperience);
+
+    Map.set(workExpByPrincipal, Map.phash, caller, workExperiencesById);
+
+    return #ok({
+      data = {
+        lid = request.lid;
+        id = newExperience.id;
+      };
+      message = "Work experience added.";
+    });
+  };
+
+  public shared ({ caller }) func clientBatchUpdate(newWorkExps : [Type.WorkExperience]) : async Type.Response<()> {
+    let expById = switch (Map.get(workExpByPrincipal, Map.phash, caller)) {
+      case null {
+        return #err({
+          message = "Empty work experience.";
+        });
+      };
+      case (?val) val;
     };
 
-    public shared ({ caller }) func clientAdd(request: {
-        jobTitle: Text;
-        company: Text;
-        startDate: Text;
-        endDate: Text;
-        current: Bool;
-        description: Text;
-    }) : async WorkExperience {
-        nextId += 1;
-
-        let newExperience: WorkExperience = {
-            id = nextId;
-            jobTitle = request.jobTitle;
-            company = request.company;
-            startDate = request.startDate;
-            endDate = request.endDate;
-            current = request.current;
-            description = request.description;
+    for (exp in newWorkExps.vals()) {
+      switch (Map.get(expById, nhash, exp.id)) {
+        case (?_) {
+          Map.set(expById, nhash, exp.id, exp);
         };
-
-        // Get existing map or create a new one
-        let workExperiencesById = switch (Map.get(workExpByPrincipal, Map.phash, caller)) {
-            case (?workExps) workExps;
-            case null Map.new<Nat, WorkExperience>();
-        };
-
-        Map.set(workExperiencesById, nhash, newExperience.id, newExperience);
-
-        Map.set(workExpByPrincipal, Map.phash, caller, workExperiencesById);
-
-        return newExperience;
+        case null {};
+      };
     };
 
-    public shared ({ caller }) func clientBatchUpdate(newWorkExps: [WorkExperience]) : async [WorkExperience] {
-        let expById = switch (Map.get(workExpByPrincipal, Map.phash, caller)) {
-            case (?val) val;
-            case null return [];
-        };
+    Map.set(workExpByPrincipal, Map.phash, caller, expById);
 
-        var updatedWorkExps : [WorkExperience] = [];
+    return #ok({
+      data = ();
+      message = "Work experience updated.";
+    });
+  };
 
-        for (exp in newWorkExps.vals()) {
-            switch (Map.get(expById, nhash, exp.id)) {
-                case (?_) {
-                    Map.set(expById, nhash, exp.id, exp);
-                    updatedWorkExps := Array.append(updatedWorkExps, [exp]);
-                };
-                case null {};
-            };
-        };
+  public shared ({ caller }) func clientDeleteById(id : Nat) : async Type.Response<Type.DeletedResponse> {
+    let maybeExpById = Map.get(workExpByPrincipal, Map.phash, caller);
 
-        Map.set(workExpByPrincipal, Map.phash, caller, expById);
-
-        return updatedWorkExps;
+    let expById = switch maybeExpById {
+      case null {
+        return #err({
+          message = "Empty work experience.";
+        });
+      };
+      case (?val) val;
     };
 
-    public shared ({ caller }) func clientDeleteById(id: Nat) : async Bool {
-        let maybeExpById = Map.get(workExpByPrincipal, Map.phash, caller);
+    return switch (Map.remove(expById, nhash, id)) {
+      case null {
+        return #err({
+          message = "Work experience with ID " # Nat.toText(id) # " not found";
+        });
+      };
+      case (?_) {
+        return #ok({
+          data = {
+            id = id;
+          };
+          message = "Work experience deleted.";
+        });
+      };
+    };
+  };
 
-        let expById = switch maybeExpById {
-            case (?val) val;
-            case null return false;
-        };
+  public query func descriptionPromptOf(
+    request : {
+      jobTitle : Text;
+    }
+  ) : async Text {
+    let prompt = "Based on the following job details, infer 3 realistic and quantifiable resume bullet points. " #
+    "focus solely on extracting quantifiable achievements from the role. " #
+    "**Only return the points, separated by one pipeline characters |. No intro, no explanation, no conversational text before or after the points.** " #
+    "Each point MUST adhere to these strict rules: " #
+    "  - Start with a strong action verb. " #
+    "  - Clearly mention relevant technical skills. " #
+    "  - Include a specific, quantifiable result or impact (e.g., percentages, exact numbers, time saved, revenue generated, efficiency improvements). " #
+    "  - Be concise (under 25 words). " #
+    "  - Maintain a professional tone. " #
+    "Example Output Format: " #
+    "Managed Agile sprints for 5-developer team, increasing feature delivery by 15% using Jira.|Developed Python scripts to automate data ETL, reducing manual processing time by 20 hours/month.|Optimized cloud infrastructure on AWS, cutting operational costs by 10% through resource reallocation." #
+    "Input Details for Inference: " #
+    "Job Title: " # request.jobTitle # " " #
+    "Output:";
 
-        return switch (Map.remove(expById, nhash, id)) {
-            case (?_) true;
-            case null false;
-        };
+    return prompt;
+  };
+
+  public shared ({ caller = _ }) func clientGenerateAiDescription(
+    request : {
+      jobTitle : Text;
+    }
+  ) : async Type.Response<[Text]> {
+    let prompt = await descriptionPromptOf(request);
+
+    let result : Text = await LLM.prompt(#Llama3_1_8B, prompt);
+
+    let lowerResult = Text.toLowercase(result);
+
+    if (Text.contains(lowerResult, #text "|") == false) {
+      throw Error.reject("Invalid result format: " # result);
     };
 
-    public query func descriptionPromptOf(request: {
-        jobTitle: Text;
-        company: Text;
-        startDate: Text;
-        endDate: Text;
-        current: Bool;
-    }) : async Text {
-        let currentStatus = if (request.current) { "present" } else { request.endDate };
-
-        let prompt = 
-            "based on the following input, infer 3 realistic and quantifiable resume bullet points. " #
-            "Only return the points; no intro, no explanation. " #
-            "Each point must: " #
-            "  - Start with a strong action verb. " #
-            "  - Mention relevant technical skills. " #
-            "  - Include a quantifiable result or impact (e.g., percentages, numbers, time saved, revenue generated). " #
-            "  - Be concise (under 25 words). " #
-            "  - Maintain a professional tone. " #
-            "Separate each point with three pipeline char ||| " #
-            "Example Output Format: " #
-            "Managed Agile sprints for 5-developer team, increasing feature delivery by 15% using Jira.|||Developed Python scripts to automate data ETL, reducing manual processing time by 20 hours/month.|||Optimized cloud infrastructure on AWS, cutting operational costs by 10% through resource reallocation." #
-            "Input: " #
-            "job title: " # request.jobTitle # " " #
-            "company: " # request.company # " " #
-            "start date: " # request.startDate # " " #
-            "end date: " # currentStatus # " " #
-            "Output:";
-
-        return prompt;
+    if (
+      Text.contains(lowerResult, #text "i cannot") or
+      Text.contains(lowerResult, #text "i'm sorry") or
+      Text.contains(lowerResult, #text "unable to")
+    ) {
+      throw Error.reject("LLM refused to generate description: " # result);
     };
 
-    public shared ({ caller = _ }) func clientGenerateAiDescription(request: {
-        jobTitle: Text;
-        company: Text;
-        startDate: Text;
-        endDate: Text;
-        current: Bool;
-    }) : async [Text] {
-        let prompt = await descriptionPromptOf(request);
+    let iterOfDesc = Text.split(result, #text "|");
 
-        let result:Text = await LLM.prompt(#Llama3_1_8B, prompt);
+    // return as array for more flexibility on frontend
+    return #ok({
+        data = Iter.toArray(iterOfDesc);
+        message = "Success generate description.";
+    });
+  };
 
-        let iterOfDesc = Text.split(result, #text "|||");
-
-        // return as array for more flexibility on frontend
-        return Iter.toArray(iterOfDesc);
-    };
-
-}
+};

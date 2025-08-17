@@ -1,0 +1,7 @@
+// .ic-assets.json5
+[
+  {
+    "match": "**/*",
+    "security_policy": "standard"
+  }
+]

@@ -5,22 +5,14 @@ import Array "mo:base/Array";
 import Text "mo:base/Text";
 import { nhash } "mo:map/Map";
 import LLM "mo:llm";
+import Type "../shared/Type";
 
-actor {
-    
-    public type Education = {
-        id: Nat;
-        degree: Text;
-        institution: Text;
-        graduationDate: Text;
-        gpa: ?Text;
-    };
+persistent actor EducationService {
+    private var eduByPrincipal = Map.new<Principal, Map.Map<Nat, Type.Education>>();
 
-    private stable var eduByPrincipal = Map.new<Principal, Map.Map<Nat, Education>>();
+    private var nextId: Nat = 0;
 
-    private stable var nextId: Nat = 0;
-
-    public shared query ({ caller }) func clientGetAll() : async [Education] {
+    public shared query ({ caller }) func clientGetAll() : async [Type.Education] {
         switch (Map.get(eduByPrincipal, Map.phash, caller)) {
             case (?eduById) {
                 return Iter.toArray(Map.vals(eduById));
@@ -32,7 +24,7 @@ actor {
     };
 
     // caller is canister resume_service
-    public shared query ({ caller = _ }) func getAllByClient(client:Principal) : async [Education] {
+    public shared query ({ caller = _ }) func getAllByClient(client:Principal) : async [Type.Education] {
         switch (Map.get(eduByPrincipal, Map.phash, client)) {
             case (?eduById) {
                 return Iter.toArray(Map.vals(eduById));
@@ -48,10 +40,10 @@ actor {
         institution: Text;
         graduationDate: Text;
         gpa: ?Text;
-    }) : async Education {
+    }) : async Type.Education {
         nextId += 1;
 
-        let newEdu: Education = {
+        let newEdu: Type.Education = {
             id = nextId;
             degree = request.degree;
             institution = request.institution;
@@ -61,7 +53,7 @@ actor {
 
         let eduById = switch (Map.get(eduByPrincipal, Map.phash, caller)) {
             case (?edus) edus;
-            case null Map.new<Nat, Education>();
+            case null Map.new<Nat, Type.Education>();
         };
 
         Map.set(eduById, nhash, newEdu.id, newEdu);
@@ -71,13 +63,13 @@ actor {
         return newEdu;
     };
 
-    public shared ({ caller }) func clientBatchUpdate(newEdus: [Education]) : async [Education] {
+    public shared ({ caller }) func clientBatchUpdate(newEdus: [Type.Education]) : async [Type.Education] {
         let eduById = switch (Map.get(eduByPrincipal, Map.phash, caller)) {
             case (?edus) edus;
             case null return [];
         };
 
-        var updatedEdus : [Education] = [];
+        var updatedEdus : [Type.Education] = [];
 
         for (exp in newEdus.vals()) {
             switch (Map.get(eduById, nhash, exp.id)) {

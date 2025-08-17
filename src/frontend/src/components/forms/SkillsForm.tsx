@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,24 +6,37 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Zap, Plus, X, Save } from 'lucide-react';
-import { useResumeStore, Skill } from '../../store/useResumeStore';
+import { useResumeStore, Skill, SkillLevel } from '../../store/useResumeStore';
 import { useToast } from '@/hooks/use-toast';
 
 export const SkillsForm: React.FC = () => {
-  const { resumeData, addSkill, updateSkill, removeSkill } = useResumeStore();
+  const resumeData = useResumeStore(s => s.resumeData);
+  const addSkill = useResumeStore(s => s.addSkill);
+  const removeSkill = useResumeStore(s => s.removeSkill);
+  const saveAllSkills = useResumeStore(s => s.saveAllSkills);
+
   const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
 
+  // === tetap pakai signature lamamu ===
   const handleAdd = (skill: Omit<Skill, 'id'>) => {
-    addSkill(skill);
+    // perbedaan KECIL: cast level -> SkillLevel biar cocok sama tipe di store
+    addSkill({ name: skill.name, level: skill.level as SkillLevel });
     setShowAddForm(false);
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Saved!",
-      description: "Skills have been saved successfully.",
-    });
+  const handleSaveAllSkills = async () => {
+    try {
+      await saveAllSkills();
+      toast({ title: 'Success', description: 'All skills have been saved.' });
+    } catch (error) {
+      console.error('Failed to save skills:', error);
+      toast({
+        title: 'Error',
+        description: (error as Error)?.message ?? 'An unknown error occurred.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getSkillLevelColor = (level: string) => {
@@ -46,7 +58,8 @@ export const SkillsForm: React.FC = () => {
             <span>Skills</span>
           </div>
           <div className="flex space-x-2">
-            <Button onClick={handleSave} size="sm" variant="outline" className="flex items-center space-x-1">
+            {/* tombol Save PERSIS seperti punyamu */}
+            <Button onClick={handleSaveAllSkills} size="sm" variant="outline" className="flex items-center space-x-1">
               <Save className="w-4 h-4" />
               <span>Save</span>
             </Button>
@@ -62,26 +75,38 @@ export const SkillsForm: React.FC = () => {
           </div>
         </CardTitle>
       </CardHeader>
+
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {resumeData.skills.map((skill) => (
-            <Badge
-              key={skill.id}
-              variant="outline"
-              className={`${getSkillLevelColor(skill.level)} flex items-center space-x-1 px-3 py-1.5`}
-            >
-              <span>{skill.name}</span>
-              <span className="text-xs">({skill.level})</span>
-              <button
-                onClick={() => removeSkill(skill.id)}
-                className="ml-1 hover:text-red-600"
+        {/* 1. daftar skill (tanpa perubahan tampilan) */}
+        {resumeData.skills.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {resumeData.skills.map((skill) => (
+              <Badge
+                key={skill.id}
+                variant="outline"
+                className={`${getSkillLevelColor(skill.level)} flex items-center space-x-1 px-3 py-1.5`}
               >
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-        
+                <span>{skill.name}</span>
+                <span className="text-xs">({skill.level})</span>
+                <button
+                  onClick={() => removeSkill(skill.id)}
+                  className="ml-1 hover:text-red-600"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* 2. placeholder kalau kosong */}
+        {resumeData.skills.length === 0 && !showAddForm && (
+          <p className="text-center text-gray-500 py-4">
+            No skills added yet. Click "Add" to start.
+          </p>
+        )}
+
+        {/* 3. form tambah (tanpa perubahan tampilan) */}
         {showAddForm && (
           <AddSkillForm
             onAdd={handleAdd}
@@ -101,12 +126,14 @@ interface AddSkillFormProps {
 const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
   const [formData, setFormData] = useState({
     name: '',
-    level: 'Intermediate' as Skill['level'],
+    // tetap string seperti punyamu
+    level: 'Intermediate',
   });
 
   const handleSubmit = () => {
     if (formData.name) {
-      onAdd(formData);
+      // cast level di sini supaya nggak ganggu UI/markup
+      onAdd({ name: formData.name, level: formData.level as SkillLevel });
       setFormData({ name: '', level: 'Intermediate' });
     }
   };
@@ -114,7 +141,7 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
   return (
     <div className="p-4 border-2 border-dashed border-blue-200 rounded-lg space-y-3">
       <h4 className="font-medium text-gray-900">Add Skill</h4>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <Label>Skill Name</Label>
@@ -128,7 +155,7 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
           <Label>Proficiency Level</Label>
           <Select
             value={formData.level}
-            onValueChange={(value) => setFormData({ ...formData, level: value as Skill['level'] })}
+            onValueChange={(value) => setFormData({ ...formData, level: value })}
           >
             <SelectTrigger>
               <SelectValue />
@@ -142,7 +169,7 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
           </Select>
         </div>
       </div>
-      
+
       <div className="flex space-x-2">
         <Button onClick={handleSubmit} size="sm">Add Skill</Button>
         <Button onClick={onCancel} variant="outline" size="sm">Cancel</Button>

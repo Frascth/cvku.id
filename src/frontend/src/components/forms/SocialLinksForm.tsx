@@ -1,35 +1,206 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Share2, Plus, Trash2, Linkedin, Github, Twitter, Globe, Instagram, Facebook } from 'lucide-react';
-import { useResumeStore } from '../../store/useResumeStore';
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Share2,
+  Plus,
+  Trash2,
+  Linkedin,
+  Github,
+  Twitter,
+  Globe,
+  Instagram,
+  Facebook,
+  Save,
+} from "lucide-react";
+import { SocialLink, useResumeStore } from "@/store/useResumeStore";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { createSocialHandler } from "@/lib/socialHandler";
 
 const socialPlatforms = [
-  { name: 'LinkedIn', icon: Linkedin, placeholder: 'https://linkedin.com/in/yourprofile' },
-  { name: 'GitHub', icon: Github, placeholder: 'https://github.com/yourusername' },
-  { name: 'Twitter', icon: Twitter, placeholder: 'https://twitter.com/yourusername' },
-  { name: 'Website', icon: Globe, placeholder: 'https://yourwebsite.com' },
-  { name: 'Instagram', icon: Instagram, placeholder: 'https://instagram.com/yourusername' },
-  { name: 'Facebook', icon: Facebook, placeholder: 'https://facebook.com/yourusername' },
-];
+  { name: "LinkedIn", icon: Linkedin, placeholder: "https://linkedin.com/in/yourprofile" },
+  { name: "GitHub", icon: Github, placeholder: "https://github.com/yourusername" },
+  { name: "Twitter", icon: Twitter, placeholder: "https://twitter.com/yourusername" },
+  { name: "Website", icon: Globe, placeholder: "https://yourwebsite.com" },
+  { name: "Instagram", icon: Instagram, placeholder: "https://instagram.com/yourusername" },
+  { name: "Facebook", icon: Facebook, placeholder: "https://facebook.com/yourusername" },
+] as const;
 
 export const SocialLinksForm: React.FC = () => {
-  const { resumeData, addSocialLink, updateSocialLink, removeSocialLink } = useResumeStore();
-  const { socialLinks } = resumeData;
-  const [newLink, setNewLink] = useState({ platform: '', url: '' });
+  const {
+    resumeData,
+    addSocialLink,
+    setSocialLink,
+    updateSocialLink,
+    updateSocialLinkId,
+    removeSocialLink,
+  } = useResumeStore();
 
-  const handleAddLink = () => {
-    if (newLink.platform && newLink.url) {
-      addSocialLink(newLink);
-      setNewLink({ platform: '', url: '' });
+  const { socialLinks } = resumeData;
+  const { toast } = useToast();
+  const { authClient, isAuthenticated } = useAuth();
+
+  // form "Add new"
+  const [newLink, setNewLink] = useState<{ platform: string; url: string }>({
+    platform: "",
+    url: "",
+  });
+
+  // id (number) dari row yang sedang di-edit, atau null
+  const [showEdit, setShowEdit] = useState<number | null>(null);
+
+  const socialHandler = useMemo(() => {
+    return authClient ? createSocialHandler(authClient) : null;
+  }, [authClient]);
+
+  // Fetch awal (sekali saat handler siap)
+  useEffect(() => {
+    const fetchSocialLinks = async () => {
+      try {
+        let rows: SocialLink[] = [];
+        if (isAuthenticated && socialHandler) {
+          rows = await socialHandler.clientGetAll(); // pastikan handler ini mengembalikan id:number
+        }
+        // Set langsung ke store; kalau mau merge, ganti di store-nya
+        setSocialLink({ socialLinks: rows });
+      } catch (error) {
+        console.error("Failed to fetch social links:", error);
+      }
+    };
+
+    if (socialHandler) void fetchSocialLinks();
+  }, [socialHandler, setSocialLink, isAuthenticated]);
+
+  const getPlatformIcon = (platform: string) => {
+    const platformData = socialPlatforms.find((p) => p.name === platform);
+    return platformData?.icon || Globe;
+  };
+
+  const handleAddLink = async () => {
+    try {
+      // Validasi sederhana
+      if (!newLink.platform || !newLink.url) {
+        toast({ title: "Missing fields", description: "Choose a platform and fill the URL.", variant: "destructive" });
+        return;
+      }
+
+      // 1) Tambahkan ke lokal (optimistic)
+      const lid = Date.now();
+      addSocialLink({ lid, platform: newLink.platform, url: newLink.url } as Omit<SocialLink, "id">);
+
+      // 2) Panggil backend
+      if (socialHandler) {
+        const saved = await socialHandler.clientAdd({
+          lid,
+          socialLink: { platform: newLink.platform, url: newLink.url }, // <-- HARUS dibungkus socialLink
+        });
+        updateSocialLinkId({ lid: saved.lid!, id: saved.id }); // saved.id number, saved.lid number
+      }
+
+      // 4) Reset form
+      setNewLink({ platform: "", url: "" });
+      toast({ title: "Success", description: `${newLink.platform} link added.` });
+    } catch (error: any) {
+      toast({
+        title: "An Error Occurred",
+        description: error?.message || "Something went wrong with the social service.",
+        variant: "destructive",
+      });
     }
   };
 
-  const getPlatformIcon = (platform: string) => {
-    const platformData = socialPlatforms.find(p => p.name === platform);
-    return platformData?.icon || Globe;
+  // Ubah definisi:
+  const handleRemoveLink = async (id: number) => {
+    try {
+      removeSocialLink(id);
+      toast({ title: "Success", description: "Social link deleted." });
+
+      if (socialHandler && id > 0) {
+        await socialHandler.clientDelete({ id }); // handler tetap butuh objek
+      }
+    } catch (error: any) {
+      toast({ title: "An Error Occurred", description: error?.message ?? "..." , variant: "destructive" });
+    }
+  };
+
+
+  const handleUpdateLink = async (link: SocialLink) => {
+    try {
+      setShowEdit(null);
+      toast({ title: "Success", description: `Social link updated.` });
+
+      if (socialHandler && link.id > 0) {
+        await socialHandler.clientUpdate({ socialLink: link });
+      }
+    } catch (error: any) {
+      toast({
+        title: "An Error Occurred",
+        description: error?.message || "Something went wrong with the social service.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditLink = (id: number) => {
+    // Kalau sedang edit link lain, auto-save yang lama
+    if (showEdit && showEdit !== id) {
+      const unsaved = socialLinks.find((l) => l.id === showEdit);
+      if (unsaved) void handleUpdateLink(unsaved);
+    }
+    setShowEdit(id);
+  };
+
+  const renderLink = (link: SocialLink) => {
+    if (showEdit !== link.id) {
+      return <div className="text-sm text-gray-600 truncate">{link.url}</div>;
+    }
+    return (
+      <Input
+        id="socialUrl"
+        value={link.url}
+        onChange={(e) => updateSocialLink(link.id, { url: e.target.value })}
+        placeholder={
+          socialPlatforms.find((p) => p.name === link.platform)?.placeholder ||
+          "https://example.com/yourprofile"
+        }
+        required
+      />
+    );
+  };
+
+  const renderActionButton = (link: SocialLink) => {
+    const canEditDelete = link.id > 0; // sudah punya id backend
+    const isEditing = showEdit === link.id;
+
+    return (
+      <div className={`flex items-center space-x-3 ${isEditing ? "mt-5" : ""}`}>
+        {isEditing ? (
+          <Button variant="outline" size="sm" onClick={() => handleUpdateLink(link)}>
+            <Save className="w-4 h-4 mr-1" />
+            Save
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => handleEditLink(link.id)} disabled={!canEditDelete}>
+            Edit
+          </Button>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleRemoveLink(link.id)}
+          className="text-red-600 hover:text-red-700"
+          disabled={!canEditDelete}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    );
   };
 
   return (
@@ -40,32 +211,19 @@ export const SocialLinksForm: React.FC = () => {
           <span>Social Media Links</span>
         </CardTitle>
       </CardHeader>
+
       <CardContent className="space-y-4">
         {/* Existing Social Links */}
         {socialLinks.map((link) => {
-          const IconComponent = getPlatformIcon(link.platform);
+          const Icon = getPlatformIcon(link.platform);
           return (
-            <div key={link.id} className="flex items-center space-x-3 p-3 border rounded-lg">
-              <IconComponent className="w-5 h-5 text-gray-500" />
+            <div key={`${link.id}-${link.platform}`} className="flex items-center space-x-3 p-3 border rounded-lg">
+              <Icon className="w-5 h-5 text-gray-500" />
               <div className="flex-1">
                 <div className="font-medium text-sm">{link.platform}</div>
-                <div className="text-sm text-gray-600 truncate">{link.url}</div>
+                {renderLink(link)}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => updateSocialLink(link.id, { url: link.url })}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => removeSocialLink(link.id)}
-                className="text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              {renderActionButton(link)}
             </div>
           );
         })}
@@ -73,23 +231,38 @@ export const SocialLinksForm: React.FC = () => {
         {/* Add New Social Link */}
         <div className="space-y-3 p-4 border-2 border-dashed border-gray-200 rounded-lg">
           <Label>Add New Social Link</Label>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleAddLink();
+            }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-3"
+          >
             <div>
               <Label htmlFor="platform">Platform</Label>
               <select
                 id="platform"
                 value={newLink.platform}
                 onChange={(e) => setNewLink({ ...newLink, platform: e.target.value })}
+                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Select Platform</option>
-                {socialPlatforms.map((platform) => (
-                  <option key={platform.name} value={platform.name}>
-                    {platform.name}
-                  </option>
-                ))}
+                <option value="" disabled hidden>
+                  Select Platform
+                </option>
+                {socialPlatforms.map((platform) => {
+                  const exists = socialLinks.some((l) => l.platform === platform.name);
+                  if (exists) return null;
+                  return (
+                    <option key={platform.name} value={platform.name}>
+                      {platform.name}
+                    </option>
+                  );
+                })}
               </select>
             </div>
+
             <div>
               <Label htmlFor="socialUrl">URL</Label>
               <Input
@@ -97,18 +270,20 @@ export const SocialLinksForm: React.FC = () => {
                 value={newLink.url}
                 onChange={(e) => setNewLink({ ...newLink, url: e.target.value })}
                 placeholder={
-                  socialPlatforms.find(p => p.name === newLink.platform)?.placeholder || 
-                  'https://example.com/yourprofile'
+                  socialPlatforms.find((p) => p.name === newLink.platform)?.placeholder ||
+                  "https://example.com/yourprofile"
                 }
+                required
               />
             </div>
+
             <div className="flex items-end">
-              <Button onClick={handleAddLink} className="w-full">
+              <Button type="submit" className="w-full">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Link
               </Button>
             </div>
-          </div>
+          </form>
         </div>
       </CardContent>
     </Card>
