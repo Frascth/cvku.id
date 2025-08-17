@@ -86,8 +86,6 @@ export const GenerateLinkModal: React.FC<GenerateLinkModalProps> = ({
   }, [isAuthenticated, resumeHandler]);
 
   useEffect(() => {
-    setIsPathAlreadyUsed(true);
-
     const timeoutId = setTimeout(async () => {
       try {
         resumeHandler.isValidResumeLinkPath({ path: customPath });
@@ -271,7 +269,7 @@ export const GenerateLinkModal: React.FC<GenerateLinkModalProps> = ({
                   }}
                 />
               </div>
-              <Button onClick={generateResumeLink} disabled={isPathAlreadyUsed}>
+              <Button onClick={generateResumeLink} disabled={isPathAlreadyUsed} className={isPathAlreadyUsed ? 'cursor-not-allowed' : ''}>
                 Generate Link
               </Button>
             </div>

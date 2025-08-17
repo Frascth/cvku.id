@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,13 +9,18 @@ import {
   Mail,
   MessageCircle,
   Copy,
+  Link,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useResumeStore } from "@/store/useResumeStore";
+import { GenerateLinkModal } from "./GenerateLinkModal";
 
 export const ShareOptions: React.FC = () => {
   const { toast } = useToast();
+
   const { resumeData, getResumeLinkUrl } = useResumeStore();
+
+  const [ openGenerateLinkModal, setOpenGenerateLinkModal ] = useState<boolean>(false);
 
   const resumeUrl = getResumeLinkUrl();
 
@@ -86,15 +91,18 @@ export const ShareOptions: React.FC = () => {
     });
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Share2 className="w-5 h-5" />
-          <span>Share Resume</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+  const renderCardContent = () => {
+    if (!resumeUrl) {
+      return (<div>
+          <Button onClick={() => setOpenGenerateLinkModal(true)} className="w-full">
+            <Link className="size-4"></Link>
+            Generate Your Resume Link
+          </Button>
+      </div>);
+    }
+
+    return (
+      <div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Button
             variant="outline"
@@ -157,6 +165,21 @@ export const ShareOptions: React.FC = () => {
             {resumeUrl}
           </div>
         </div>
+      </div>
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Share2 className="w-5 h-5" />
+          <span>Share Resume</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <GenerateLinkModal isOpen={openGenerateLinkModal} onClose={() => setOpenGenerateLinkModal(false)}></GenerateLinkModal>
+        {renderCardContent()}
       </CardContent>
     </Card>
   );
