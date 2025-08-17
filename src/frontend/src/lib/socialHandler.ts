@@ -1,6 +1,6 @@
 import { createActor, canisterId } from "../../../declarations/social_service";
 import type { AuthClient } from "@dfinity/auth-client";
-import { SocialLink } from "@/store/useResumeStore";
+import type { SocialLink } from "@/store/useResumeStore";
 import { isValidUrl } from "./utils";
 
 export function createSocialHandler(authClient: AuthClient) {

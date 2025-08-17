@@ -3,7 +3,7 @@
 import Map "mo:map/Map";
 import Principal "mo:base/Principal";
 import Iter "mo:base/Iter";
-import Array "mo:base/Array";
+import _ "mo:base/Array";
 import Text "mo:base/Text";
 import Nat "mo:base/Nat"; // Masih perlu untuk generateSkillId
 import { thash } "mo:map/Map"; // <-- PENTING: Untuk Text hash
@@ -75,19 +75,16 @@ persistent actor SkillsService {
 
     // Memperbarui skills yang sudah ada (batch update)
     public shared ({ caller }) func clientBatchUpdateSkills(newSkills: [Type.Skill]) : async [Type.Skill] {
-        let skillsById = switch (Map.get(skillsByPrincipal, Map.phash, caller)) {
-            case (?val) val;
-            case null return [];
-        };
+        // Ambil atau buat map untuk caller
+        let skillsById = getOrCreateSkillsMap(caller);
 
-        var updatedSkills : [Type.Skill] = [];
-
+        // Upsert semua skill yang dikirim FE
         for (skill in newSkills.vals()) {
-            Map.set(skillsById, thash, skill.id, skill); // <-- Gunakan thash di sini
-            updatedSkills := Array.append(updatedSkills, [skill]);
+            Map.set(skillsById, thash, skill.id, skill);
         };
 
-        return updatedSkills;
+        // Kembalikan snapshot FULL setelah update (bukan sekadar input)
+        return Iter.toArray(Map.vals(skillsById));
     };
 
     // Menghapus skill berdasarkan ID

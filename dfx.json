@@ -3,14 +3,13 @@
     "internet_identity_service": {
       "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
       "type": "custom",
-      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz",
       "remote": {
         "id": {
           "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai",
           "playground": "rdmx6-jaaaa-aaaaa-aaadq-cai"
         }
       },
-      "frontend": {}
+      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz"
     },
     "llm_service": {
       "candid": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.did",
@@ -44,32 +43,34 @@
       "type": "motoko",
       "main": "src/education_service/main.mo"
     },
-
     "certification_service": {
       "type": "motoko",
       "main": "src/certification_service/main.mo"
     },
-
-    "skills_service": { 
+    "skills_service": {
       "type": "motoko",
       "main": "src/skills_service/main.mo"
     },
-
-    "custom_section_service": { 
+    "custom_section_service": {
       "type": "motoko",
       "main": "src/custom_section_service/main.mo"
     },
-
     "ats_service": {
       "type": "motoko",
       "main": "src/ats_service/main.mo"
     },
-
     "social_service": {
       "type": "motoko",
       "main": "src/social_service/main.mo"
     },
-
+    "coverleter_service": {
+      "type": "motoko",
+      "main": "src/coverleter_service/main.mo"
+    },
+    "resume_score_service": {
+      "type": "motoko",
+      "main": "src/resume_score_service/main.mo"
+    },
     "frontend": {
       "type": "assets",
       "source": [
@@ -85,7 +86,10 @@
         "custom_section_service",
         "ats_service",
         "social_service",
-        "resume_service"
+        "coverleter_service",
+        "llm_service",
+        "resume_service",
+        "resume_score_service"
       ]
     }
   },

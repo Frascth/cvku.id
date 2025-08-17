@@ -1,14 +1,12 @@
-// lib/workExperienceHandler.ts
+// src/lib/customSectionHandler.ts
 import { createActor, canisterId } from "../../../declarations/custom_section_service";
 import type { AuthClient } from "@dfinity/auth-client";
-import { CustomSection, CustomSectionItem } from "@/store/useResumeStore";
+import type { CustomSection, CustomSectionItem } from "@/store/useResumeStore";
 import { toOptionalMo, toOptionalTs } from "./moUtils";
 
 export function createCustomSectionHandler(authClient: AuthClient) {
   const actor = createActor(canisterId, {
-    agentOptions: {
-      identity: authClient.getIdentity(),
-    },
+    agentOptions: { identity: authClient.getIdentity() },
   });
 
   return {
