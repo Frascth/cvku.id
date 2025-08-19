@@ -63,9 +63,9 @@
       "type": "motoko",
       "main": "src/social_service/main.mo"
     },
-    "coverleter_service": {
+    "cover_letter_service": {
       "type": "motoko",
-      "main": "src/coverleter_service/main.mo"
+      "main": "src/cover_letter_service/main.mo"
     },
     "resume_score_service": {
       "type": "motoko",
