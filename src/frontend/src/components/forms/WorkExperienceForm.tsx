@@ -43,8 +43,6 @@ export const WorkExperienceForm: React.FC = () => {
 
         const exps = await workExpHandler.clientGetAll();
 
-        console.log(exps);
-
         setWorkExperience(exps);
       } catch (error) {
         console.error("Failed to fetch work experiences", error);
@@ -59,6 +57,11 @@ export const WorkExperienceForm: React.FC = () => {
   const handleAdd = async (experience: WorkExperience) => {
     try {
       const lid = crypto.randomUUID();
+
+      experience = {
+        ...experience,
+        lid: lid,
+      };
 
       addWorkExperience(experience);
 
@@ -89,7 +92,6 @@ export const WorkExperienceForm: React.FC = () => {
       toast({
         title: "Work Experience Deleted",
         description: "The selected work experience was successfully removed.",
-        variant: "destructive",
       });
 
       await workExpHandler.clientDeleteById(id);

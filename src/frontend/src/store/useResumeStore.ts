@@ -609,7 +609,7 @@ const createStoreImpl: SC = (set, get) => ({
       resumeData: {
         ...state.resumeData,
         socialLinks: state.resumeData.socialLinks.map((link) =>
-          link.lid === lid ? { ...link, id } : link
+          link.lid === lid ? { ...link, id:id } : link
         ),
       },
     })),

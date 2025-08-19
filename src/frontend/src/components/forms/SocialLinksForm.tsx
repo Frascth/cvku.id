@@ -63,7 +63,8 @@ export const SocialLinksForm: React.FC = () => {
   const { socialLinks } = resumeData;
 
   const [newLink, setNewLink] = useState({
-    id: crypto.randomUUID(), // Ganti lid menjadi id
+    lid: crypto.randomUUID(),
+    id: crypto.randomUUID(),
     platform: "",
     url: "",
   });
@@ -108,9 +109,9 @@ export const SocialLinksForm: React.FC = () => {
     try {
       const socialLink = { ...newLink };
 
-      addSocialLink(newLink);
+      addSocialLink(socialLink);
 
-      setNewLink({ id: crypto.randomUUID(), platform: "", url: "" });
+      setNewLink({ id: crypto.randomUUID(), lid: crypto.randomUUID(), platform: "", url: "" });
 
       toast({
         title: "Success",
@@ -118,7 +119,7 @@ export const SocialLinksForm: React.FC = () => {
       });
 
       const addedSocialLink = await socialHandler.clientAdd({
-        lid: socialLink.id,
+        lid: socialLink.lid,
         socialLink: socialLink,
       });
 

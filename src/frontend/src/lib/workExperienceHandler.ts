@@ -48,6 +48,8 @@ export function createWorkExperienceHandler(authClient: AuthClient) {
         return;
       }
 
+      console.log(workExps);
+
       const newExps = workExps.map(exp => ({
         ...exp,
         id: BigInt(exp.id)
