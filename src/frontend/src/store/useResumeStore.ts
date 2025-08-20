@@ -100,12 +100,30 @@ export interface ResumeLink {
   isPublic: boolean;
 }
 
+export interface CoverLetterBuilder {
+  id: string;
+  recipientName: string;
+  companyName: string;
+  jobTitle: string;
+  jobDescription: string;
+  tone: string;
+};
+
+export interface CoverLetterEditor {
+  id: string;
+  introduction: string;
+  body: string;
+  conclusion: string;
+};
+
 export interface ResumeData {
   personalInfo: PersonalInfo;
   workExperience: WorkExperience[];
   education: Education[];
   skills: Skill[];
   certifications: Certification[];
+  coverLetterBuilder: CoverLetterBuilder;
+  coverLetterEditor: CoverLetterEditor;
   socialLinks: SocialLink[];
   customSections: CustomSection[];
   resumeLink?: ResumeLink;
@@ -166,7 +184,7 @@ export interface ResumeStore {
   // Work experience
   setWorkExperience: (experiences: WorkExperience[]) => void;
   addWorkExperience: (experience: WorkExperience) => void;
-  updateWorkExperienceId: (lid: string, id:string) => void;
+  updateWorkExperienceId: (lid: string, id: string) => void;
   updateWorkExperience: (id: string, experience: Partial<WorkExperience>) => void;
   removeWorkExperience: (id: string) => void;
   setEducation: (experiences: Education[]) => void;
@@ -189,6 +207,10 @@ export interface ResumeStore {
   updateResumeLinkId: (params: { lid: string, id: string }) => void;
   getResumeLinkUrl: () => string;
 
+  // Cover letter
+  setCoverLetterBuilder: (builder: CoverLetterBuilder) => void;
+  setCoverLetterEditor: (editor: CoverLetterEditor) => void;
+
   // misc
   setTemplate: (template: "minimal" | "modern" | "professional") => void;
   setPrivacy: (isPrivate: boolean) => void;
@@ -210,6 +232,20 @@ const initialResumeData: ResumeData = {
   education: [],
   skills: [],
   certifications: [],
+  coverLetterBuilder: {
+    id: '',
+    recipientName: '',
+    companyName: '',
+    jobTitle: '',
+    jobDescription: '',
+    tone: '',
+  },
+  coverLetterEditor: {
+    id: '',
+    introduction: '',
+    body: '',
+    conclusion: '',
+  },
   socialLinks: [],
   customSections: [],
   resumeLink: {
@@ -509,25 +545,25 @@ const createStoreImpl: SC = (set, get) => ({
       },
     })),
 
-      updateWorkExperienceId: (lid, id) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            workExperience: state.resumeData.workExperience.map((exp) =>
-              exp.lid === lid ? { ...exp, id: id } : exp
-            ),
-          },
-        })),
+  updateWorkExperienceId: (lid, id) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        workExperience: state.resumeData.workExperience.map((exp) =>
+          exp.lid === lid ? { ...exp, id: id } : exp
+        ),
+      },
+    })),
 
-      updateWorkExperience: (id, experience) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            workExperience: state.resumeData.workExperience.map((exp) =>
-              exp.id === id ? { ...exp, ...experience } : exp
-            ),
-          },
-        })),
+  updateWorkExperience: (id, experience) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        workExperience: state.resumeData.workExperience.map((exp) =>
+          exp.id === id ? { ...exp, ...experience } : exp
+        ),
+      },
+    })),
 
   removeWorkExperience: (id) =>
     set((state) => ({
@@ -572,24 +608,24 @@ const createStoreImpl: SC = (set, get) => ({
   /* =========================
    * Social Links
    * ========================= */
-      addSocialLink: (socialLink) =>
-        set((state) => {
+  addSocialLink: (socialLink) =>
+    set((state) => {
 
-          if (!isValidUrl(socialLink.url)) {
-            throw new Error(`Please provide a valid url`);
-          }
+      if (!isValidUrl(socialLink.url)) {
+        throw new Error(`Please provide a valid url`);
+      }
 
-          return {
-            resumeData: {
-              ...state.resumeData,
-              socialLinks: [
-                ...state.resumeData.socialLinks,
-                { ...socialLink, id: crypto.randomUUID() },
-              ],
-            },
-          }
+      return {
+        resumeData: {
+          ...state.resumeData,
+          socialLinks: [
+            ...state.resumeData.socialLinks,
+            { ...socialLink, id: crypto.randomUUID() },
+          ],
+        },
+      }
 
-        }),
+    }),
 
   setSocialLink: ({ socialLinks }) =>
     set((state) => ({ resumeData: { ...state.resumeData, socialLinks } })),
@@ -609,7 +645,7 @@ const createStoreImpl: SC = (set, get) => ({
       resumeData: {
         ...state.resumeData,
         socialLinks: state.resumeData.socialLinks.map((link) =>
-          link.lid === lid ? { ...link, id:id } : link
+          link.lid === lid ? { ...link, id: id } : link
         ),
       },
     })),
@@ -628,128 +664,128 @@ const createStoreImpl: SC = (set, get) => ({
   setCustomSection: ({ sections }) =>
     set((state) => ({ resumeData: { ...state.resumeData, customSections: sections } })),
 
-      addCustomSection: (section) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            customSections: [
-              ...state.resumeData.customSections,
-              { ...section, id: crypto.randomUUID() },
-            ],
-          },
-        })),
-
-
-      updateCustomSectionId: (lid, newId) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            customSections: state.resumeData.customSections.map((section) =>
-              section.lid === lid ? { ...section, id: newId } : section
-            ),
-          },
-        })),
-
-      updateCustomSection: (id, section) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            customSections: state.resumeData.customSections.map((s) =>
-              s.id === id ? { ...s, ...section } : s
-            ),
-          },
-        })),
-
-      removeCustomSection: (id) =>
-        set((state) => ({
-          resumeData: {
-            ...state.resumeData,
-            customSections: state.resumeData.customSections.filter((s) => s.id !== id),
-          },
-        })),
-
-      addCustomSectionItem: (item) => {
-        set((state) => {
-
-          const sectionIndex = state.resumeData.customSections.findIndex((section) => section.id === item.sectionId);
-
-          if (sectionIndex === -1) {
-            throw new Error(`Custom section with id "${item.sectionId}" not found.`);
-          }
-
-          const section = state.resumeData.customSections[sectionIndex];
-
-          const updatedItems = [...section.items, item];
-
-          const updatedSection = {
-            ...section,
-            items: updatedItems,
-          };
-
-          const updatedSections = [...state.resumeData.customSections];
-
-          updatedSections[sectionIndex] = updatedSection;
-
-          return {
-            resumeData: {
-              ...state.resumeData,
-              customSections: updatedSections
-            },
-          };
-        });
+  addCustomSection: (section) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        customSections: [
+          ...state.resumeData.customSections,
+          { ...section, id: crypto.randomUUID() },
+        ],
       },
+    })),
 
-      updateCustomSectionItemId: ({ sectionId, lid, newId }) => {
-        set((state) => {
 
-          const sectionIndex = state.resumeData.customSections.findIndex((section) => section.id === sectionId);
-
-          if (sectionIndex === -1) {
-            throw new Error(`Custom section with id "${sectionId}" not found.`);
-          }
-
-          const section = state.resumeData.customSections[sectionIndex];
-
-          const itemIndex = section.items.findIndex((item) => item.lid === lid);
-
-          if (itemIndex === -1) {
-            throw new Error(`Item with id "${itemIndex}" not found.`);
-          }
-
-          const updatedItems = [...section.items];
-
-          updatedItems[itemIndex] = {
-            ...updatedItems[itemIndex],
-            id: newId
-          };
-
-          const updatedSection = {
-            ...section,
-            items: updatedItems,
-          };
-
-          const updatedSections = [...state.resumeData.customSections];
-
-          updatedSections[sectionIndex] = updatedSection;
-
-          return {
-            resumeData: {
-              ...state.resumeData,
-              customSections: updatedSections
-            },
-          };
-        });
+  updateCustomSectionId: (lid, newId) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        customSections: state.resumeData.customSections.map((section) =>
+          section.lid === lid ? { ...section, id: newId } : section
+        ),
       },
+    })),
 
-      getResumeLinkUrl: () => {
-        const path = get().resumeData.resumeLink?.path;
-
-        if (!path) {
-          return '';
-        }
-
-        return `${window.location.origin}/resume/${path}`;
+  updateCustomSection: (id, section) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        customSections: state.resumeData.customSections.map((s) =>
+          s.id === id ? { ...s, ...section } : s
+        ),
       },
+    })),
+
+  removeCustomSection: (id) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        customSections: state.resumeData.customSections.filter((s) => s.id !== id),
+      },
+    })),
+
+  addCustomSectionItem: (item) => {
+    set((state) => {
+
+      const sectionIndex = state.resumeData.customSections.findIndex((section) => section.id === item.sectionId);
+
+      if (sectionIndex === -1) {
+        throw new Error(`Custom section with id "${item.sectionId}" not found.`);
+      }
+
+      const section = state.resumeData.customSections[sectionIndex];
+
+      const updatedItems = [...section.items, item];
+
+      const updatedSection = {
+        ...section,
+        items: updatedItems,
+      };
+
+      const updatedSections = [...state.resumeData.customSections];
+
+      updatedSections[sectionIndex] = updatedSection;
+
+      return {
+        resumeData: {
+          ...state.resumeData,
+          customSections: updatedSections
+        },
+      };
+    });
+  },
+
+  updateCustomSectionItemId: ({ sectionId, lid, newId }) => {
+    set((state) => {
+
+      const sectionIndex = state.resumeData.customSections.findIndex((section) => section.id === sectionId);
+
+      if (sectionIndex === -1) {
+        throw new Error(`Custom section with id "${sectionId}" not found.`);
+      }
+
+      const section = state.resumeData.customSections[sectionIndex];
+
+      const itemIndex = section.items.findIndex((item) => item.lid === lid);
+
+      if (itemIndex === -1) {
+        throw new Error(`Item with id "${itemIndex}" not found.`);
+      }
+
+      const updatedItems = [...section.items];
+
+      updatedItems[itemIndex] = {
+        ...updatedItems[itemIndex],
+        id: newId
+      };
+
+      const updatedSection = {
+        ...section,
+        items: updatedItems,
+      };
+
+      const updatedSections = [...state.resumeData.customSections];
+
+      updatedSections[sectionIndex] = updatedSection;
+
+      return {
+        resumeData: {
+          ...state.resumeData,
+          customSections: updatedSections
+        },
+      };
+    });
+  },
+
+  getResumeLinkUrl: () => {
+    const path = get().resumeData.resumeLink?.path;
+
+    if (!path) {
+      return '';
+    }
+
+    return `${window.location.origin}/resume/${path}`;
+  },
 
   setResumeLink: ({ resumeLink }) =>
     set((state) => ({ resumeData: { ...state.resumeData, resumeLink } })),
@@ -759,6 +795,25 @@ const createStoreImpl: SC = (set, get) => ({
       resumeData: {
         ...state.resumeData,
         resumeLink: { ...state.resumeData.resumeLink, id },
+      },
+    })),
+
+  /* =========================
+   * Cover Letter
+   * ========================= */
+  setCoverLetterBuilder: (builder) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        coverLetterBuilder: { ...builder },
+      },
+    })),
+
+  setCoverLetterEditor: (editor) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        coverLetterEditor: { ...editor },
       },
     })),
 

@@ -5,16 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Wand2, Download, Eye, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AuthClient } from "@dfinity/auth-client";
-import { createActor as createLlmActor, canisterId as llmCanisterId } from "../../../declarations/llm_service";
-import {
-  saveDraft,
-  type CoverLetterEditor,
-} from "@/lib/coverLetterHandler";
+import { saveDraft, type CoverLetterEditor } from "@/lib/_coverLetterHandler";
+import { useAuth } from "@/hooks/use-auth";
+import { createCoverLetterHandler } from "@/lib/coverLetterHandler";
+import { useResumeStore } from "@/store/useResumeStore";
 
 interface CoverLetterData {
   recipientName: string;
@@ -28,9 +33,17 @@ interface CoverLetterData {
 }
 
 export const CoverLetterBuilder: React.FC = () => {
+  const { resumeData, setCoverLetterBuilder, setCoverLetterEditor } =
+    useResumeStore();
+
   const { toast } = useToast();
+
   const [isGenerating, setIsGenerating] = useState(false);
-  const [activeTab, setActiveTab] = useState<"builder" | "editor" | "templates" | "preview">("builder");
+
+  type TabType = "builder" | "editor" | "templates" | "preview";
+
+  const [activeTab, setActiveTab] = useState<TabType>("builder");
+
   const [draftId, setDraftId] = useState<bigint | null>(null);
 
   const [coverLetterData, setCoverLetterData] = useState<CoverLetterData>({
@@ -53,88 +66,96 @@ export const CoverLetterBuilder: React.FC = () => {
   ];
 
   const templates = [
-    { id: "traditional", name: "Traditional", description: "Classic formal business letter format" },
-    { id: "modern", name: "Modern", description: "Contemporary style with a personal touch" },
-    { id: "creative", name: "Creative", description: "Unique format for creative industries" },
-    { id: "tech", name: "Tech", description: "Technical focus for IT and software roles" },
+    {
+      id: "traditional",
+      name: "Traditional",
+      description: "Classic formal business letter format",
+    },
+    {
+      id: "modern",
+      name: "Modern",
+      description: "Contemporary style with a personal touch",
+    },
+    {
+      id: "creative",
+      name: "Creative",
+      description: "Unique format for creative industries",
+    },
+    {
+      id: "tech",
+      name: "Tech",
+      description: "Technical focus for IT and software roles",
+    },
   ] as const;
 
-  const LLM_MODEL = "llama4-scout"; // opsi lain: "qwen3:32b" atau "llama4-scout"
+  const { authClient, isAuthenticated } = useAuth();
+
+  const coverLetterHandler = useMemo(() => {
+    if (authClient) {
+      return createCoverLetterHandler(authClient);
+    }
+    return null;
+  }, [authClient]);
+
+  useEffect(() => {
+    const fetchCoverLetter = async () => {
+      try {
+        if (!isAuthenticated) {
+          return;
+        }
+
+        const builder = await coverLetterHandler.clientGetBuilder();
+
+        if (builder) {
+          setCoverLetterBuilder(builder);
+        }
+      } catch (error) {
+        console.error("Failed to fetch cover letter builder", error);
+      }
+    };
+
+    if (coverLetterHandler) {
+      fetchCoverLetter();
+    }
+  }, [isAuthenticated]);
 
   const handleInputChange = (field: keyof CoverLetterData, value: string) => {
     setCoverLetterData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Auth & LLM actor
-  const [authClient, setAuthClient] = useState<AuthClient | null>(null);
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const ac = await AuthClient.create();
-      if (mounted) setAuthClient(ac);
-    })();
-    return () => { mounted = false; };
-  }, []);
-
-  const llm = useMemo(
-    () =>
-      authClient
-        ? createLlmActor(llmCanisterId, {
-          agentOptions: { identity: authClient.getIdentity() },
-        })
-        : null,
-    [authClient]
-  );
-
   const generateCoverLetter = async () => {
     if (!coverLetterData.companyName || !coverLetterData.jobTitle) {
       toast({
         title: "Missing Information",
-        description: "Please fill in the company name and job title to generate a cover letter.",
+        description:
+          "Please fill in the company name and job title to generate a cover letter.",
         variant: "destructive",
       });
       return;
     }
-    if (!llm) {
-      toast({ title: "Not ready", description: "Auth belum siap. Coba lagi sebentar." });
-      return;
-    }
 
     setIsGenerating(true);
+
     try {
-      const sys =
-        "You are an expert cover letter writer. Output EXACTLY three paragraphs: an introduction, a body, and a conclusion. Keep it concise and professional.";
-      const userText = `Recipient: ${coverLetterData.recipientName || "Hiring Manager"}
-Company: ${coverLetterData.companyName}
-Job Title: ${coverLetterData.jobTitle}
-Job Description: ${coverLetterData.jobDescription}
-Tone: ${coverLetterData.tone}`;
+      const editor = await coverLetterHandler.clientGenerateAiCoverLetter(
+        coverLetterData
+      );
 
-      // Panggil LLM canister langsung (query)
-      const completion: string = await llm.v0_chat({
-        model: LLM_MODEL, // <— gunakan konstanta
-        messages: [
-          { role: { system: null }, content: sys },
-          { role: { user: null }, content: userText },
-        ],
-      });
+      setCoverLetterData((prev) => ({
+        ...prev,
+        ...editor,
+      }));
 
-      // Split jadi 3 paragraf pakai blank line
-      const [introduction = "", body = "", conclusion = ""] = completion.split(/\n\s*\n/);
-
-      setCoverLetterData((prev) => ({ ...prev, introduction, body, conclusion }));
       setActiveTab("editor");
-      toast({ title: "Cover Letter Generated!", description: "Your AI-generated cover letter is ready for review." });
-    } catch (e: any) {
-      console.error("v0_chat error:", e);
-      // Tampilkan pilihan model jika provider mengembalikan daftar "Supported models: ..."
-      const msg = String(e?.message ?? e);
-      const supported = msg.match(/Supported models:\s*(.*)$/i)?.[1];
+
+      toast({
+        title: "Cover Letter Generated!",
+        description: "Your AI-generated cover letter is ready for review.",
+      });
+    } catch (e) {
       toast({
         title: "Error",
-        description: supported
-          ? `Model tidak didukung. Coba salah satu: ${supported}`
-          : "Failed to generate cover letter.",
+        description: e.message || "Failed to generate cover letter.",
         variant: "destructive",
       });
     } finally {
@@ -142,45 +163,56 @@ Tone: ${coverLetterData.tone}`;
     }
   };
 
-
   const handleSave = async () => {
-    if (!coverLetterData.companyName || !coverLetterData.jobTitle) {
-      toast({
-        title: "Missing required fields",
-        description: "Company name & job title are required to save.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // if (!coverLetterData.companyName || !coverLetterData.jobTitle) {
+    //   toast({
+    //     title: "Missing required fields",
+    //     description: "Company name & job title are required to save.",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
 
     try {
-      const builder = {
-        recipientName: coverLetterData.recipientName || "Hiring Manager",
-        companyName: coverLetterData.companyName,
-        jobTitle: coverLetterData.jobTitle,
-        jobDescription: coverLetterData.jobDescription,
-        tone: coverLetterData.tone,
-      };
-      const editor: CoverLetterEditor = {
-        introduction: coverLetterData.introduction,
-        body: coverLetterData.body,
-        conclusion: coverLetterData.conclusion,
-      };
+      // const builder = {
+      //   recipientName: coverLetterData.recipientName || "Hiring Manager",
+      //   companyName: coverLetterData.companyName,
+      //   jobTitle: coverLetterData.jobTitle,
+      //   jobDescription: coverLetterData.jobDescription,
+      //   tone: coverLetterData.tone,
+      // };
+      // const editor: CoverLetterEditor = {
+      //   introduction: coverLetterData.introduction,
+      //   body: coverLetterData.body,
+      //   conclusion: coverLetterData.conclusion,
+      // };
 
-      const id = await saveDraft(draftId, builder, editor);
-      setDraftId(id);
+      // const id = await saveDraft(draftId, builder, editor);
 
-      toast({ title: "Saved", description: "Your cover letter has been saved." });
+      // setDraftId(id);
+
+      toast({
+        title: "Saved",
+        description: "Your cover letter has been saved.",
+      });
     } catch (e) {
-      toast({ title: "Save failed", description: "Please try again.", variant: "destructive" });
+      toast({
+        title: "Save failed",
+        description: e.message || "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleUseTemplate = (templateId: typeof templates[number]["id"]) => {
+  const handleUseTemplate = (templateId: (typeof templates)[number]["id"]) => {
     if (templateId === "traditional") {
       setCoverLetterData((prev) => ({
         ...prev,
-        introduction: `Dear ${prev.recipientName || "Hiring Manager"},\n\nI am writing to express my interest in the ${prev.jobTitle} position at ${prev.companyName}.`,
+        introduction: `Dear ${
+          prev.recipientName || "Hiring Manager"
+        },\n\nI am writing to express my interest in the ${
+          prev.jobTitle
+        } position at ${prev.companyName}.`,
         body: `In my previous roles, I have developed skills closely aligned with this role. I collaborate well across teams and enjoy delivering impact.`,
         conclusion: `Thank you for your time and consideration. I look forward to discussing how I can contribute to ${prev.companyName}.\n\nSincerely,\n[Your Name]`,
       }));
@@ -188,7 +220,11 @@ Tone: ${coverLetterData.tone}`;
     if (templateId === "modern") {
       setCoverLetterData((prev) => ({
         ...prev,
-        introduction: `Hello ${prev.recipientName || "Hiring Manager"},\n\nI’m excited about the ${prev.jobTitle} role at ${prev.companyName}.`,
+        introduction: `Hello ${
+          prev.recipientName || "Hiring Manager"
+        },\n\nI’m excited about the ${prev.jobTitle} role at ${
+          prev.companyName
+        }.`,
         body: `I bring hands-on experience in fast-paced environments and love solving real problems with thoughtful engineering and collaboration.`,
         conclusion: `I’d love to connect and share how I can help ${prev.companyName} reach its goals.\n\nBest,\n[Your Name]`,
       }));
@@ -196,7 +232,11 @@ Tone: ${coverLetterData.tone}`;
     if (templateId === "creative") {
       setCoverLetterData((prev) => ({
         ...prev,
-        introduction: `Hi ${prev.recipientName || "Hiring Manager"},\n\nAs a creative professional, I see ${prev.companyName} as the perfect canvas for the ${prev.jobTitle} role.`,
+        introduction: `Hi ${
+          prev.recipientName || "Hiring Manager"
+        },\n\nAs a creative professional, I see ${
+          prev.companyName
+        } as the perfect canvas for the ${prev.jobTitle} role.`,
         body: `My approach blends curiosity with execution. I’ve shipped campaigns/features that balanced fresh ideas with measurable outcomes.`,
         conclusion: `Thanks for reviewing my application—I’d be thrilled to bring that energy to ${prev.companyName}.\n\nCheers,\n[Your Name]`,
       }));
@@ -204,7 +244,9 @@ Tone: ${coverLetterData.tone}`;
     if (templateId === "tech") {
       setCoverLetterData((prev) => ({
         ...prev,
-        introduction: `Dear ${prev.recipientName || "Hiring Manager"},\n\nI’m applying for ${prev.jobTitle} at ${prev.companyName}.`,
+        introduction: `Dear ${
+          prev.recipientName || "Hiring Manager"
+        },\n\nI’m applying for ${prev.jobTitle} at ${prev.companyName}.`,
         body: `I’ve built and maintained production systems, focused on reliability, performance, and developer experience. I enjoy pairing and writing clean, tested code.`,
         conclusion: `I’d welcome the chance to discuss how I can contribute to ${prev.companyName}'s roadmap.\n\nRegards,\n[Your Name]`,
       }));
@@ -225,7 +267,10 @@ Tone: ${coverLetterData.tone}`;
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const safeCompany = (coverLetterData.companyName || "Company").replace(/\s+/g, "_");
+    const safeCompany = (coverLetterData.companyName || "Company").replace(
+      /\s+/g,
+      "_"
+    );
     const safeRole = (coverLetterData.jobTitle || "Role").replace(/\s+/g, "_");
     a.href = url;
     a.download = `cover_letter_${safeCompany}_${safeRole}.txt`;
@@ -234,7 +279,10 @@ Tone: ${coverLetterData.tone}`;
     a.remove();
     URL.revokeObjectURL(url);
 
-    toast({ title: "Exported", description: "Your cover letter was downloaded as .txt." });
+    toast({
+      title: "Exported",
+      description: "Your cover letter was downloaded as .txt.",
+    });
   };
 
   const getFullCoverLetter = () =>
@@ -249,7 +297,11 @@ Tone: ${coverLetterData.tone}`;
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v:TabType) => setActiveTab(v)}
+          className="space-y-4"
+        >
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="builder">Builder</TabsTrigger>
             <TabsTrigger value="editor">Editor</TabsTrigger>
@@ -265,7 +317,9 @@ Tone: ${coverLetterData.tone}`;
                   <Input
                     id="companyName"
                     value={coverLetterData.companyName}
-                    onChange={(e) => handleInputChange("companyName", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("companyName", e.target.value)
+                    }
                     placeholder="Enter company name"
                   />
                 </div>
@@ -275,7 +329,9 @@ Tone: ${coverLetterData.tone}`;
                   <Input
                     id="jobTitle"
                     value={coverLetterData.jobTitle}
-                    onChange={(e) => handleInputChange("jobTitle", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("jobTitle", e.target.value)
+                    }
                     placeholder="Enter job title"
                   />
                 </div>
@@ -285,7 +341,9 @@ Tone: ${coverLetterData.tone}`;
                   <Input
                     id="recipientName"
                     value={coverLetterData.recipientName}
-                    onChange={(e) => handleInputChange("recipientName", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("recipientName", e.target.value)
+                    }
                     placeholder="Hiring Manager (optional)"
                   />
                 </div>
@@ -312,11 +370,15 @@ Tone: ${coverLetterData.tone}`;
                 </div>
 
                 <div>
-                  <Label htmlFor="jobDescription">Job Description (Optional)</Label>
+                  <Label htmlFor="jobDescription">
+                    Job Description (Optional)
+                  </Label>
                   <Textarea
                     id="jobDescription"
                     value={coverLetterData.jobDescription}
-                    onChange={(e) => handleInputChange("jobDescription", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("jobDescription", e.target.value)
+                    }
                     placeholder="Paste job description for better customization"
                     rows={6}
                   />
@@ -325,7 +387,12 @@ Tone: ${coverLetterData.tone}`;
             </div>
 
             <div className="flex justify-center">
-              <Button onClick={generateCoverLetter} disabled={isGenerating || !llm} size="lg" className="flex items-center space-x-2">
+              <Button
+                onClick={generateCoverLetter}
+                disabled={isGenerating}
+                size="lg"
+                className="flex items-center space-x-2"
+              >
                 {isGenerating ? (
                   <>
                     <Wand2 className="w-4 h-4 animate-spin" />
@@ -341,7 +408,9 @@ Tone: ${coverLetterData.tone}`;
             </div>
 
             {draftId != null && (
-              <div className="text-center text-xs text-gray-500 mt-2">Draft ID: {draftId.toString()}</div>
+              <div className="text-center text-xs text-gray-500 mt-2">
+                Draft ID: {draftId.toString()}
+              </div>
             )}
           </TabsContent>
 
@@ -352,7 +421,9 @@ Tone: ${coverLetterData.tone}`;
                 <Textarea
                   id="introduction"
                   value={coverLetterData.introduction}
-                  onChange={(e) => handleInputChange("introduction", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("introduction", e.target.value)
+                  }
                   placeholder="Write your opening paragraph..."
                   rows={4}
                 />
@@ -374,7 +445,9 @@ Tone: ${coverLetterData.tone}`;
                 <Textarea
                   id="conclusion"
                   value={coverLetterData.conclusion}
-                  onChange={(e) => handleInputChange("conclusion", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("conclusion", e.target.value)
+                  }
                   placeholder="Write your closing paragraph..."
                   rows={4}
                 />
@@ -403,7 +476,11 @@ Tone: ${coverLetterData.tone}`;
                   <div className="space-y-2">
                     <h3 className="font-semibold">{t.name}</h3>
                     <p className="text-sm text-gray-600">{t.description}</p>
-                    <Button size="sm" className="w-full" onClick={() => handleUseTemplate(t.id)}>
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => handleUseTemplate(t.id)}
+                    >
                       Use Template
                     </Button>
                   </div>
@@ -416,7 +493,8 @@ Tone: ${coverLetterData.tone}`;
             <div className="bg-white border rounded-lg p-8 max-w-2xl mx-auto">
               <div className="space-y-4 text-sm leading-relaxed">
                 <div className="whitespace-pre-wrap">
-                  {getFullCoverLetter() || "Generate or write your cover letter to see the preview."}
+                  {getFullCoverLetter() ||
+                    "Generate or write your cover letter to see the preview."}
                 </div>
               </div>
             </div>

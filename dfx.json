@@ -86,7 +86,7 @@
         "custom_section_service",
         "ats_service",
         "social_service",
-        "coverleter_service",
+        "cover_letter_service",
         "llm_service",
         "resume_service",
         "resume_score_service"
