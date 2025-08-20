@@ -11,6 +11,26 @@ import { isValidUrl } from "@/lib/utils";
  * ========================= */
 export type SkillLevel = "Beginner" | "Intermediate" | "Advanced" | "Expert";
 
+export type AssessmentLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+
+export interface AssessmentResult {
+  skillId: string;      // 'javascript', 'react', dst (ID internal assessment)
+  skillName: string;    // 'JavaScript', 'React', dst
+  score: number;        // 0..100
+  correct: number;
+  total: number;
+  level: AssessmentLevel;
+  dateISO: string;      // ISO date
+}
+
+// Badge yang akan ditampilkan di Skills (keyed by skill name)
+export interface SkillBadge {
+  title: string;        // contoh: "JavaScript Assessment (Advanced)"
+  level: AssessmentLevel;
+  score: number;
+  dateISO: string;
+}
+
 // FE-only types (untuk Resume Score)
 export type ScorePriority = "High" | "Medium" | "Low";
 export interface ScoreCategoryFE {
@@ -155,6 +175,18 @@ export interface ResumeStore {
     improvements: ImprovementFE[];
   }) => void;
   clearResumeScore: () => void;
+
+    // --- Assessment (hasil + badge di Skills) ---
+  assessment: Record<string, AssessmentResult>;           // key = skillId assessment
+  setAssessmentResult: (r: AssessmentResult) => void;
+  clearAssessmentForSkill: (skillId: string) => void;
+  clearAllAssessments: () => void;
+
+  // badge per skillName (lowercased) → mudah ditampilkan di Skills
+  skillBadges: Record<string, SkillBadge>;                // key = skillName.toLowerCase()
+  awardBadgeFromAssessment: (skillId: string) => void;    // pakai hasil terakhir utk skillId tsb
+  removeBadgeForSkillName: (skillName: string) => void;
+  getBadgeForSkillName: (skillName: string) => SkillBadge | undefined;
 
   // handlers
   certificationHandler: ReturnType<typeof createCertificationHandler> | null;
@@ -308,6 +340,49 @@ const createStoreImpl: SC = (set, get) => ({
       resumeScoreImprovements: [],
     })),
 
+    // ===== Assessment =====
+    // ===== Assessment results =====
+  assessment: {},
+  setAssessmentResult: (r) =>
+    set((s) => ({
+      ...s,
+      assessment: { ...s.assessment, [r.skillId]: r },
+    })),
+  clearAssessmentForSkill: (skillId) =>
+    set((s) => {
+      const copy = { ...s.assessment };
+      delete copy[skillId];
+      return { ...s, assessment: copy };
+    }),
+  clearAllAssessments: () => set((s) => ({ ...s, assessment: {} })),
+
+  // ===== Skill badges (ditampilkan di Skills) =====
+  skillBadges: {},
+  awardBadgeFromAssessment: (skillId) =>
+    set((s) => {
+      const r = s.assessment[skillId];
+      if (!r) return s; // gak ada hasil -> no-op
+      const key = r.skillName.toLowerCase();
+      const badge: SkillBadge = {
+        title: `${r.skillName} Assessment (${r.level})`,
+        level: r.level,
+        score: r.score,
+        dateISO: r.dateISO,
+      };
+      return {
+        ...s,
+        skillBadges: { ...s.skillBadges, [key]: badge },
+      };
+    }),
+  removeBadgeForSkillName: (skillName) =>
+    set((s) => {
+      const key = skillName.toLowerCase();
+      const copy = { ...s.skillBadges };
+      delete copy[key];
+      return { ...s, skillBadges: copy };
+    }),
+  getBadgeForSkillName: (skillName) => get().skillBadges[skillName.toLowerCase()],
+
   // ===== handlers init =====
   initializeHandlers: (authClient) => {
     try {
@@ -324,6 +399,8 @@ const createStoreImpl: SC = (set, get) => ({
           resumeScoreOverall: null,
           resumeScoreCategories: [],
           resumeScoreImprovements: [],
+          assessment: {},          // ← hasil assessment direset
+          skillBadges: {},
           resumeData: {
             ...state.resumeData,
             skills: [],
@@ -856,6 +933,8 @@ type PersistedSlice = Pick<
   | "resumeScoreOverall"
   | "resumeScoreCategories"
   | "resumeScoreImprovements"
+  | "assessment"         // ⬅️ persist
+  | "skillBadges"
 >;
 
 /* =========================
@@ -876,6 +955,8 @@ export const useResumeStore = create<ResumeStore>()(
         resumeScoreOverall: s.resumeScoreOverall,
         resumeScoreCategories: s.resumeScoreCategories,
         resumeScoreImprovements: s.resumeScoreImprovements,
+        assessment: s.assessment,       // ⬅️
+        skillBadges: s.skillBadges,
       }),
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
