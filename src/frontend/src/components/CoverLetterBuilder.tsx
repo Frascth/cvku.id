@@ -15,26 +15,20 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Wand2, Download, Eye, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { AuthClient } from "@dfinity/auth-client";
-import { saveDraft, type CoverLetterEditor } from "@/lib/_coverLetterHandler";
 import { useAuth } from "@/hooks/use-auth";
 import { createCoverLetterHandler } from "@/lib/coverLetterHandler";
 import { useResumeStore } from "@/store/useResumeStore";
 
-interface CoverLetterData {
-  recipientName: string;
-  companyName: string;
-  jobTitle: string;
-  jobDescription: string;
-  tone: string;
-  introduction: string;
-  body: string;
-  conclusion: string;
-}
-
 export const CoverLetterBuilder: React.FC = () => {
-  const { resumeData, setCoverLetterBuilder, setCoverLetterEditor } =
-    useResumeStore();
+  const {
+    resumeData,
+    setCoverLetterBuilder,
+    setCoverLetterEditor,
+    updateCoverLetterBuilder,
+    updateCoverLetterEditor,
+  } = useResumeStore();
+
+  const { coverLetterBuilder, coverLetterEditor } = resumeData;
 
   const { toast } = useToast();
 
@@ -43,19 +37,6 @@ export const CoverLetterBuilder: React.FC = () => {
   type TabType = "builder" | "editor" | "templates" | "preview";
 
   const [activeTab, setActiveTab] = useState<TabType>("builder");
-
-  const [draftId, setDraftId] = useState<bigint | null>(null);
-
-  const [coverLetterData, setCoverLetterData] = useState<CoverLetterData>({
-    recipientName: "",
-    companyName: "",
-    jobTitle: "",
-    jobDescription: "",
-    tone: "professional",
-    introduction: "",
-    body: "",
-    conclusion: "",
-  });
 
   const toneOptions = [
     { value: "professional", label: "Professional" },
@@ -100,14 +81,37 @@ export const CoverLetterBuilder: React.FC = () => {
   useEffect(() => {
     const fetchCoverLetter = async () => {
       try {
+        setCoverLetterBuilder({
+          id: "",
+          recipientName: "",
+          companyName: "",
+          jobTitle: "",
+          jobDescription: "",
+          tone: "professional",
+        });
+
+        setCoverLetterEditor({
+          id: "",
+          introduction: "",
+          body: "",
+          conclusion: "",
+        });
+
         if (!isAuthenticated) {
           return;
         }
 
-        const builder = await coverLetterHandler.clientGetBuilder();
+        const [builder, editor] = await Promise.all([
+          coverLetterHandler.clientGetBuilder(),
+          coverLetterHandler.clientGetEditor(),
+        ]);
 
         if (builder) {
           setCoverLetterBuilder(builder);
+        }
+
+        if (editor) {
+          setCoverLetterEditor(editor);
         }
       } catch (error) {
         console.error("Failed to fetch cover letter builder", error);
@@ -119,12 +123,8 @@ export const CoverLetterBuilder: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  const handleInputChange = (field: keyof CoverLetterData, value: string) => {
-    setCoverLetterData((prev) => ({ ...prev, [field]: value }));
-  };
-
   const generateCoverLetter = async () => {
-    if (!coverLetterData.companyName || !coverLetterData.jobTitle) {
+    if (!coverLetterBuilder.companyName || !coverLetterBuilder.jobTitle) {
       toast({
         title: "Missing Information",
         description:
@@ -138,13 +138,10 @@ export const CoverLetterBuilder: React.FC = () => {
 
     try {
       const editor = await coverLetterHandler.clientGenerateAiCoverLetter(
-        coverLetterData
+        coverLetterBuilder
       );
 
-      setCoverLetterData((prev) => ({
-        ...prev,
-        ...editor,
-      }));
+      setCoverLetterEditor(editor);
 
       setActiveTab("editor");
 
@@ -164,37 +161,22 @@ export const CoverLetterBuilder: React.FC = () => {
   };
 
   const handleSave = async () => {
-    // if (!coverLetterData.companyName || !coverLetterData.jobTitle) {
-    //   toast({
-    //     title: "Missing required fields",
-    //     description: "Company name & job title are required to save.",
-    //     variant: "destructive",
-    //   });
-    //   return;
-    // }
+    if (!coverLetterBuilder.companyName || !coverLetterBuilder.jobTitle) {
+      toast({
+        title: "Missing required fields",
+        description: "Company name & job title are required to save.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      // const builder = {
-      //   recipientName: coverLetterData.recipientName || "Hiring Manager",
-      //   companyName: coverLetterData.companyName,
-      //   jobTitle: coverLetterData.jobTitle,
-      //   jobDescription: coverLetterData.jobDescription,
-      //   tone: coverLetterData.tone,
-      // };
-      // const editor: CoverLetterEditor = {
-      //   introduction: coverLetterData.introduction,
-      //   body: coverLetterData.body,
-      //   conclusion: coverLetterData.conclusion,
-      // };
-
-      // const id = await saveDraft(draftId, builder, editor);
-
-      // setDraftId(id);
-
       toast({
         title: "Saved",
         description: "Your cover letter has been saved.",
       });
+
+      await coverLetterHandler.clientSave(coverLetterBuilder, coverLetterEditor);
     } catch (e) {
       toast({
         title: "Save failed",
@@ -206,50 +188,52 @@ export const CoverLetterBuilder: React.FC = () => {
 
   const handleUseTemplate = (templateId: (typeof templates)[number]["id"]) => {
     if (templateId === "traditional") {
-      setCoverLetterData((prev) => ({
-        ...prev,
+      updateCoverLetterEditor({
+        ...coverLetterEditor,
         introduction: `Dear ${
-          prev.recipientName || "Hiring Manager"
+          coverLetterBuilder.recipientName || "Hiring Manager"
         },\n\nI am writing to express my interest in the ${
-          prev.jobTitle
-        } position at ${prev.companyName}.`,
+          coverLetterBuilder.jobTitle
+        } position at ${coverLetterBuilder.companyName}.`,
         body: `In my previous roles, I have developed skills closely aligned with this role. I collaborate well across teams and enjoy delivering impact.`,
-        conclusion: `Thank you for your time and consideration. I look forward to discussing how I can contribute to ${prev.companyName}.\n\nSincerely,\n[Your Name]`,
-      }));
+        conclusion: `Thank you for your time and consideration. I look forward to discussing how I can contribute to ${coverLetterBuilder.companyName}.\n\nSincerely,\n[Your Name]`,
+      });
     }
     if (templateId === "modern") {
-      setCoverLetterData((prev) => ({
-        ...prev,
+      updateCoverLetterEditor({
+        ...coverLetterEditor,
         introduction: `Hello ${
-          prev.recipientName || "Hiring Manager"
-        },\n\nI’m excited about the ${prev.jobTitle} role at ${
-          prev.companyName
+          coverLetterBuilder.recipientName || "Hiring Manager"
+        },\n\nI’m excited about the ${coverLetterBuilder.jobTitle} role at ${
+          coverLetterBuilder.companyName
         }.`,
         body: `I bring hands-on experience in fast-paced environments and love solving real problems with thoughtful engineering and collaboration.`,
-        conclusion: `I’d love to connect and share how I can help ${prev.companyName} reach its goals.\n\nBest,\n[Your Name]`,
-      }));
+        conclusion: `I’d love to connect and share how I can help ${coverLetterBuilder.companyName} reach its goals.\n\nBest,\n[Your Name]`,
+      });
     }
     if (templateId === "creative") {
-      setCoverLetterData((prev) => ({
-        ...prev,
+      updateCoverLetterEditor({
+        ...coverLetterEditor,
         introduction: `Hi ${
-          prev.recipientName || "Hiring Manager"
+          coverLetterBuilder.recipientName || "Hiring Manager"
         },\n\nAs a creative professional, I see ${
-          prev.companyName
-        } as the perfect canvas for the ${prev.jobTitle} role.`,
+          coverLetterBuilder.companyName
+        } as the perfect canvas for the ${coverLetterBuilder.jobTitle} role.`,
         body: `My approach blends curiosity with execution. I’ve shipped campaigns/features that balanced fresh ideas with measurable outcomes.`,
-        conclusion: `Thanks for reviewing my application—I’d be thrilled to bring that energy to ${prev.companyName}.\n\nCheers,\n[Your Name]`,
-      }));
+        conclusion: `Thanks for reviewing my application—I’d be thrilled to bring that energy to ${coverLetterBuilder.companyName}.\n\nCheers,\n[Your Name]`,
+      });
     }
     if (templateId === "tech") {
-      setCoverLetterData((prev) => ({
-        ...prev,
+      updateCoverLetterEditor({
+        ...coverLetterEditor,
         introduction: `Dear ${
-          prev.recipientName || "Hiring Manager"
-        },\n\nI’m applying for ${prev.jobTitle} at ${prev.companyName}.`,
+          coverLetterBuilder.recipientName || "Hiring Manager"
+        },\n\nI’m applying for ${coverLetterBuilder.jobTitle} at ${
+          coverLetterBuilder.companyName
+        }.`,
         body: `I’ve built and maintained production systems, focused on reliability, performance, and developer experience. I enjoy pairing and writing clean, tested code.`,
-        conclusion: `I’d welcome the chance to discuss how I can contribute to ${prev.companyName}'s roadmap.\n\nRegards,\n[Your Name]`,
-      }));
+        conclusion: `I’d welcome the chance to discuss how I can contribute to ${coverLetterBuilder.companyName}'s roadmap.\n\nRegards,\n[Your Name]`,
+      });
     }
     setActiveTab("editor");
   };
@@ -267,11 +251,14 @@ export const CoverLetterBuilder: React.FC = () => {
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const safeCompany = (coverLetterData.companyName || "Company").replace(
+    const safeCompany = (coverLetterBuilder.companyName || "Company").replace(
       /\s+/g,
       "_"
     );
-    const safeRole = (coverLetterData.jobTitle || "Role").replace(/\s+/g, "_");
+    const safeRole = (coverLetterBuilder.jobTitle || "Role").replace(
+      /\s+/g,
+      "_"
+    );
     a.href = url;
     a.download = `cover_letter_${safeCompany}_${safeRole}.txt`;
     document.body.appendChild(a);
@@ -286,7 +273,7 @@ export const CoverLetterBuilder: React.FC = () => {
   };
 
   const getFullCoverLetter = () =>
-    `${coverLetterData.introduction}\n\n${coverLetterData.body}\n\n${coverLetterData.conclusion}`;
+    `${coverLetterEditor.introduction}\n\n${coverLetterEditor.body}\n\n${coverLetterEditor.conclusion}`;
 
   return (
     <Card>
@@ -299,7 +286,7 @@ export const CoverLetterBuilder: React.FC = () => {
       <CardContent>
         <Tabs
           value={activeTab}
-          onValueChange={(v:TabType) => setActiveTab(v)}
+          onValueChange={(v: TabType) => setActiveTab(v)}
           className="space-y-4"
         >
           <TabsList className="grid w-full grid-cols-4">
@@ -316,9 +303,9 @@ export const CoverLetterBuilder: React.FC = () => {
                   <Label htmlFor="companyName">Company Name *</Label>
                   <Input
                     id="companyName"
-                    value={coverLetterData.companyName}
+                    value={coverLetterBuilder.companyName}
                     onChange={(e) =>
-                      handleInputChange("companyName", e.target.value)
+                      updateCoverLetterBuilder({ companyName: e.target.value })
                     }
                     placeholder="Enter company name"
                   />
@@ -328,9 +315,9 @@ export const CoverLetterBuilder: React.FC = () => {
                   <Label htmlFor="jobTitle">Job Title *</Label>
                   <Input
                     id="jobTitle"
-                    value={coverLetterData.jobTitle}
+                    value={coverLetterBuilder.jobTitle}
                     onChange={(e) =>
-                      handleInputChange("jobTitle", e.target.value)
+                      updateCoverLetterBuilder({ jobTitle: e.target.value })
                     }
                     placeholder="Enter job title"
                   />
@@ -340,9 +327,11 @@ export const CoverLetterBuilder: React.FC = () => {
                   <Label htmlFor="recipientName">Recipient Name</Label>
                   <Input
                     id="recipientName"
-                    value={coverLetterData.recipientName}
+                    value={coverLetterBuilder.recipientName}
                     onChange={(e) =>
-                      handleInputChange("recipientName", e.target.value)
+                      updateCoverLetterBuilder({
+                        recipientName: e.target.value,
+                      })
                     }
                     placeholder="Hiring Manager (optional)"
                   />
@@ -353,8 +342,10 @@ export const CoverLetterBuilder: React.FC = () => {
                 <div>
                   <Label htmlFor="tone">Tone</Label>
                   <Select
-                    value={coverLetterData.tone}
-                    onValueChange={(value) => handleInputChange("tone", value)}
+                    value={coverLetterBuilder.tone}
+                    onValueChange={(value) =>
+                      updateCoverLetterBuilder({ tone: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -375,9 +366,11 @@ export const CoverLetterBuilder: React.FC = () => {
                   </Label>
                   <Textarea
                     id="jobDescription"
-                    value={coverLetterData.jobDescription}
+                    value={coverLetterBuilder.jobDescription}
                     onChange={(e) =>
-                      handleInputChange("jobDescription", e.target.value)
+                      updateCoverLetterBuilder({
+                        jobDescription: e.target.value,
+                      })
                     }
                     placeholder="Paste job description for better customization"
                     rows={6}
@@ -406,12 +399,6 @@ export const CoverLetterBuilder: React.FC = () => {
                 )}
               </Button>
             </div>
-
-            {draftId != null && (
-              <div className="text-center text-xs text-gray-500 mt-2">
-                Draft ID: {draftId.toString()}
-              </div>
-            )}
           </TabsContent>
 
           <TabsContent value="editor" className="space-y-4">
@@ -420,9 +407,9 @@ export const CoverLetterBuilder: React.FC = () => {
                 <Label htmlFor="introduction">Introduction</Label>
                 <Textarea
                   id="introduction"
-                  value={coverLetterData.introduction}
+                  value={coverLetterEditor.introduction}
                   onChange={(e) =>
-                    handleInputChange("introduction", e.target.value)
+                    updateCoverLetterEditor({ introduction: e.target.value })
                   }
                   placeholder="Write your opening paragraph..."
                   rows={4}
@@ -433,8 +420,10 @@ export const CoverLetterBuilder: React.FC = () => {
                 <Label htmlFor="body">Body</Label>
                 <Textarea
                   id="body"
-                  value={coverLetterData.body}
-                  onChange={(e) => handleInputChange("body", e.target.value)}
+                  value={coverLetterEditor.body}
+                  onChange={(e) =>
+                    updateCoverLetterEditor({ body: e.target.value })
+                  }
                   placeholder="Write the main content of your cover letter..."
                   rows={8}
                 />
@@ -444,9 +433,9 @@ export const CoverLetterBuilder: React.FC = () => {
                 <Label htmlFor="conclusion">Conclusion</Label>
                 <Textarea
                   id="conclusion"
-                  value={coverLetterData.conclusion}
+                  value={coverLetterEditor.conclusion}
                   onChange={(e) =>
-                    handleInputChange("conclusion", e.target.value)
+                    updateCoverLetterEditor({ conclusion: e.target.value })
                   }
                   placeholder="Write your closing paragraph..."
                   rows={4}

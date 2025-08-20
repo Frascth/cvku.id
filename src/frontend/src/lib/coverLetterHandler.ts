@@ -12,7 +12,7 @@ export function createCoverLetterHandler(authClient: AuthClient) {
 
   return {
 
-    clientGetBuilder: async (): Promise<CoverLetterBuilder|null> => {
+    clientGetBuilder: async (): Promise<CoverLetterBuilder | null> => {
       const response = await actor.clientGetBuilder();
 
       if ('err' in response) {
@@ -21,7 +21,7 @@ export function createCoverLetterHandler(authClient: AuthClient) {
 
       const builder = toOptionalTs(response.ok.data);
 
-      if (! builder) {
+      if (!builder) {
         return null;
       }
 
@@ -29,6 +29,35 @@ export function createCoverLetterHandler(authClient: AuthClient) {
         ...builder,
         id: builder.id.toString(),
       };
+    },
+
+    clientGetEditor: async (): Promise<CoverLetterEditor | null> => {
+      const response = await actor.clientGetEditor();
+
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with cover letter service");
+      }
+
+      const editor = toOptionalTs(response.ok.data);
+
+      if (!editor) {
+        return null;
+      }
+
+      return {
+        ...editor,
+        id: editor.id.toString(),
+      };
+    },
+
+    clientSave: async (builder: Omit<CoverLetterBuilder, 'id'>, editor: Omit<CoverLetterEditor, 'id'>): Promise<void> => {
+      const response = await actor.clientSave(builder, editor);
+
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with cover letter service");
+      }
+
+      return;
     },
 
     clientGenerateAiCoverLetter: async (builder: Omit<CoverLetterBuilder, "id">): Promise<CoverLetterEditor> => {

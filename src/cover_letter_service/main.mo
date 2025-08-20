@@ -15,6 +15,88 @@ persistent actor CoverLetterService {
 
   private var editorByPrincipal = Map.new<Principal, Type.CoverLetterEditor>();
 
+  private func createOrUpdateBuilder(
+    request : {
+      client : Principal;
+      companyName : Text;
+      jobTitle : Text;
+      recipientName : Text;
+      tone : Text;
+      jobDescription : Text;
+    }
+  ) : Type.CoverLetterBuilder {
+
+    let existingBuilder = Map.get(builderByPrincipal, Map.phash, request.client);
+
+    switch (existingBuilder) {
+      case (null) {
+        // Create a new builder since one doesn't exist
+        builderNextId += 1;
+        let newBuilder : Type.CoverLetterBuilder = {
+          id = builderNextId;
+          companyName = request.companyName;
+          jobTitle = request.jobTitle;
+          recipientName = request.recipientName;
+          tone = request.tone;
+          jobDescription = request.jobDescription;
+        };
+        Map.set(builderByPrincipal, Map.phash, request.client, newBuilder);
+        return newBuilder;
+      };
+      case (?builder) {
+        // Update the existing builder
+        let updatedBuilder : Type.CoverLetterBuilder = {
+          id = builder.id; // Preserve the original ID
+          companyName = request.companyName;
+          jobTitle = request.jobTitle;
+          recipientName = request.recipientName;
+          tone = request.tone;
+          jobDescription = request.jobDescription;
+        };
+        Map.set(builderByPrincipal, Map.phash, request.client, updatedBuilder);
+        return updatedBuilder;
+      };
+    };
+  };
+
+  private func createOrUpdateEditor(
+    request : {
+      client : Principal;
+      introduction : Text;
+      body : Text;
+      conclusion : Text;
+    }
+  ) : Type.CoverLetterEditor {
+
+    let existingEditor = Map.get(editorByPrincipal, Map.phash, request.client);
+
+    switch (existingEditor) {
+      case (null) {
+        // Create a new editor since one doesn't exist
+        editorNextId += 1;
+        let newEditor : Type.CoverLetterEditor = {
+          id = editorNextId;
+          introduction = request.introduction;
+          body = request.body;
+          conclusion = request.conclusion;
+        };
+        Map.set(editorByPrincipal, Map.phash, request.client, newEditor);
+        return newEditor;
+      };
+      case (?editor) {
+        // Update the existing editor
+        let updatedEditor : Type.CoverLetterEditor = {
+          id = editor.id; // Preserve the original ID
+          introduction = request.introduction;
+          body = request.body;
+          conclusion = request.conclusion;
+        };
+        Map.set(editorByPrincipal, Map.phash, request.client, updatedEditor);
+        return updatedEditor;
+      };
+    };
+  };
+
   public shared query ({ caller }) func clientGetBuilder() : async Type.Response<?Type.CoverLetterBuilder> {
     switch (Map.get(builderByPrincipal, Map.phash, caller)) {
       case null {
@@ -49,54 +131,40 @@ persistent actor CoverLetterService {
     };
   };
 
-  private func storeBuilder(
-    request : {
-      client : Principal;
+  public shared ({ caller }) func clientSave(
+    builder : {
       companyName : Text;
       jobTitle : Text;
       recipientName : Text;
       tone : Text;
       jobDescription : Text;
-    }
-  ) : Type.CoverLetterBuilder {
-
-    builderNextId += 1;
-
-    let builder : Type.CoverLetterBuilder = {
-      id = builderNextId;
-      companyName = request.companyName;
-      jobTitle = request.jobTitle;
-      recipientName = request.recipientName;
-      tone = request.tone;
-      jobDescription = request.jobDescription;
-    };
-
-    let _ = Map.set(builderByPrincipal, Map.phash, request.client, builder);
-
-    return builder;
-  };
-
-  private func storeEditor(
-    request : {
-      client : Principal;
+    },
+    editor : {
       introduction : Text;
       body : Text;
       conclusion : Text;
-    }
-  ) : Type.CoverLetterEditor {
+    },
+  ) : async Type.Response<()> {
+    let _ = createOrUpdateBuilder({
+      client = caller;
+      companyName = builder.companyName;
+      jobTitle = builder.jobTitle;
+      recipientName = builder.recipientName;
+      tone = builder.tone;
+      jobDescription = builder.jobDescription;
+    });
 
-    editorNextId += 1;
+    let _ = createOrUpdateEditor({
+      client = caller;
+      introduction = editor.introduction;
+      body = editor.body;
+      conclusion = editor.conclusion;
+    });
 
-    let editor : Type.CoverLetterEditor = {
-      id = editorNextId;
-      introduction = request.introduction;
-      body = request.body;
-      conclusion = request.conclusion;
-    };
-
-    let _ = Map.set(editorByPrincipal, Map.phash, request.client, editor);
-
-    return editor;
+    return #ok({
+      data = ();
+      message = "Success save";
+    });
   };
 
   public query func coverLetterPromptOf(
@@ -137,7 +205,7 @@ persistent actor CoverLetterService {
       jobDescription : Text;
     }
   ) : async Type.Response<Type.CoverLetterEditor> {
-    let _ = storeBuilder({
+    let _ = createOrUpdateBuilder({
       client = caller;
       companyName = request.companyName;
       jobTitle = request.jobTitle;
@@ -185,7 +253,7 @@ persistent actor CoverLetterService {
       case null "";
     };
 
-    let editor = storeEditor({
+    let editor = createOrUpdateEditor({
       client = caller;
       introduction = introduction;
       body = body;

@@ -209,7 +209,9 @@ export interface ResumeStore {
 
   // Cover letter
   setCoverLetterBuilder: (builder: CoverLetterBuilder) => void;
+  updateCoverLetterBuilder: (builder: Partial<CoverLetterBuilder>) => void;
   setCoverLetterEditor: (editor: CoverLetterEditor) => void;
+  updateCoverLetterEditor: (editor: Partial<CoverLetterEditor>) => void;
 
   // misc
   setTemplate: (template: "minimal" | "modern" | "professional") => void;
@@ -238,7 +240,7 @@ const initialResumeData: ResumeData = {
     companyName: '',
     jobTitle: '',
     jobDescription: '',
-    tone: '',
+    tone: 'professional',
   },
   coverLetterEditor: {
     id: '',
@@ -809,11 +811,27 @@ const createStoreImpl: SC = (set, get) => ({
       },
     })),
 
+  updateCoverLetterBuilder: (patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        coverLetterBuilder: { ...state.resumeData.coverLetterBuilder, ...patch },
+      },
+    })),
+
   setCoverLetterEditor: (editor) =>
     set((state) => ({
       resumeData: {
         ...state.resumeData,
         coverLetterEditor: { ...editor },
+      },
+    })),
+
+  updateCoverLetterEditor: (patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        coverLetterEditor: { ...state.resumeData.coverLetterEditor, ...patch },
       },
     })),
 
