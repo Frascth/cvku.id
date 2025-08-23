@@ -241,6 +241,11 @@ export interface ResumeStore {
   getResumeLinkUrl: () => string;
 
   // Cover letter
+    // Cover letter (STATE)
+  coverLetterBuilder: CoverLetterBuilder;
+  coverLetterEditor: CoverLetterEditor;
+
+  // Cover letter (ACTIONS)
   setCoverLetterBuilder: (builder: CoverLetterBuilder) => void;
   updateCoverLetterBuilder: (builder: Partial<CoverLetterBuilder>) => void;
   setCoverLetterEditor: (editor: CoverLetterEditor) => void;
@@ -291,6 +296,22 @@ const initialResumeData: ResumeData = {
   },
 };
 
+const defaultCoverLetterBuilder: CoverLetterBuilder = {
+  id: '',
+  recipientName: '',
+  companyName: '',
+  jobTitle: '',
+  jobDescription: '',
+  tone: 'professional',
+};
+
+const defaultCoverLetterEditor: CoverLetterEditor = {
+  id: '',
+  introduction: '',
+  body: '',
+  conclusion: '',
+};
+
 // (opsional) helper tak terpakai, aman dibiarkan
 const mergeById = <T extends { id: string }>(local: T[], server: T[]) => {
   const map = new Map<string, T>();
@@ -313,6 +334,9 @@ const createStoreImpl: SC = (set, get) => ({
   skillsHandler: null,
   hasHydrated: false,
   currentPrincipal: null,
+  coverLetterBuilder: defaultCoverLetterBuilder,
+  coverLetterEditor: defaultCoverLetterEditor,
+
 
   // ===== ATS =====
   atsScore: null,
@@ -882,36 +906,25 @@ const createStoreImpl: SC = (set, get) => ({
    * Cover Letter
    * ========================= */
   setCoverLetterBuilder: (builder) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        coverLetterBuilder: { ...builder },
-      },
+    set(() => ({
+      coverLetterBuilder: { ...builder },
     })),
 
   updateCoverLetterBuilder: (patch) =>
     set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        coverLetterBuilder: { ...state.resumeData.coverLetterBuilder, ...patch },
-      },
+      coverLetterBuilder: { ...state.coverLetterBuilder, ...patch },
     })),
 
   setCoverLetterEditor: (editor) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        coverLetterEditor: { ...editor },
-      },
+    set(() => ({
+      coverLetterEditor: { ...editor },
     })),
 
   updateCoverLetterEditor: (patch) =>
     set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        coverLetterEditor: { ...state.resumeData.coverLetterEditor, ...patch },
-      },
+      coverLetterEditor: { ...state.coverLetterEditor, ...patch },
     })),
+
 
   /* =========================
    * misc
@@ -936,6 +949,8 @@ type PersistedSlice = Pick<
   | "resumeScoreImprovements"
   | "assessment"         // ⬅️ persist
   | "skillBadges"
+  | "coverLetterBuilder"    // <— tambahkan
+  | "coverLetterEditor"     // <— tambahkan
 >;
 
 /* =========================
@@ -958,6 +973,8 @@ export const useResumeStore = create<ResumeStore>()(
         resumeScoreImprovements: s.resumeScoreImprovements,
         assessment: s.assessment,       // ⬅️
         skillBadges: s.skillBadges,
+        coverLetterBuilder: s.coverLetterBuilder,
+        coverLetterEditor: s.coverLetterEditor,
       }),
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
@@ -970,6 +987,9 @@ export const useResumeStore = create<ResumeStore>()(
           if (!state.resumeScoreCategories) state.resumeScoreCategories = [];
           if (!state.resumeScoreImprovements) state.resumeScoreImprovements = [];
           if (state.currentPrincipal === undefined) state.currentPrincipal = null;
+
+          if (!state.coverLetterBuilder) state.coverLetterBuilder = { ...defaultCoverLetterBuilder };
+          if (!state.coverLetterEditor)  state.coverLetterEditor  = { ...defaultCoverLetterEditor };
 
           // ⛔️ Jangan fetch di sini (handlers belum di-init).
           // Fetch dilakukan di initializeHandlers setelah handler tersedia.

@@ -5,13 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Wand2, Download, Eye, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -19,23 +13,39 @@ import { useAuth } from "@/hooks/use-auth";
 import { createCoverLetterHandler } from "@/lib/coverLetterHandler";
 import { useResumeStore } from "@/store/useResumeStore";
 
-export const CoverLetterBuilder: React.FC = () => {
-  const {
-    resumeData,
-    setCoverLetterBuilder,
-    setCoverLetterEditor,
-    updateCoverLetterBuilder,
-    updateCoverLetterEditor,
-  } = useResumeStore();
+const DEFAULT_BUILDER = {
+  id: "",
+  recipientName: "",
+  companyName: "",
+  jobTitle: "",
+  jobDescription: "",
+  tone: "professional",
+};
 
-  const { coverLetterBuilder, coverLetterEditor } = resumeData;
+const DEFAULT_EDITOR = {
+  id: "",
+  introduction: "",
+  body: "",
+  conclusion: "",
+};
+
+type TabType = "builder" | "editor" | "templates" | "preview";
+
+export const CoverLetterBuilder: React.FC = () => {
+  // ⬇️ ambil dari ROOT store (bukan dari resumeData)
+  const coverLetterBuilder = useResumeStore((s) => s.coverLetterBuilder);
+  const coverLetterEditor = useResumeStore((s) => s.coverLetterEditor);
+  const setCoverLetterBuilder = useResumeStore((s) => s.setCoverLetterBuilder);
+  const updateCoverLetterBuilder = useResumeStore((s) => s.updateCoverLetterBuilder);
+  const setCoverLetterEditor = useResumeStore((s) => s.setCoverLetterEditor);
+  const updateCoverLetterEditor = useResumeStore((s) => s.updateCoverLetterEditor);
+
+  // fallback biar nggak crash saat awal render
+  const builder = coverLetterBuilder ?? DEFAULT_BUILDER;
+  const editor = coverLetterEditor ?? DEFAULT_EDITOR;
 
   const { toast } = useToast();
-
   const [isGenerating, setIsGenerating] = useState(false);
-
-  type TabType = "builder" | "editor" | "templates" | "preview";
-
   const [activeTab, setActiveTab] = useState<TabType>("builder");
 
   const toneOptions = [
@@ -44,124 +54,70 @@ export const CoverLetterBuilder: React.FC = () => {
     { value: "enthusiastic", label: "Enthusiastic" },
     { value: "confident", label: "Confident" },
     { value: "creative", label: "Creative" },
-  ];
+  ] as const;
 
   const templates = [
-    {
-      id: "traditional",
-      name: "Traditional",
-      description: "Classic formal business letter format",
-    },
-    {
-      id: "modern",
-      name: "Modern",
-      description: "Contemporary style with a personal touch",
-    },
-    {
-      id: "creative",
-      name: "Creative",
-      description: "Unique format for creative industries",
-    },
-    {
-      id: "tech",
-      name: "Tech",
-      description: "Technical focus for IT and software roles",
-    },
+    { id: "traditional", name: "Traditional", description: "Classic formal business letter format" },
+    { id: "modern", name: "Modern", description: "Contemporary style with a personal touch" },
+    { id: "creative", name: "Creative", description: "Unique format for creative industries" },
+    { id: "tech", name: "Tech", description: "Technical focus for IT and software roles" },
   ] as const;
 
   const { authClient, isAuthenticated } = useAuth();
+  const handler = useMemo(() => (authClient ? createCoverLetterHandler(authClient) : null), [authClient]);
 
-  const coverLetterHandler = useMemo(() => {
-    if (authClient) {
-      return createCoverLetterHandler(authClient);
-    }
-    return null;
-  }, [authClient]);
-
+  // init default (biar nggak undefined) + fetch dari BE kalau sudah login
   useEffect(() => {
-    const fetchCoverLetter = async () => {
+    // init sekali kalau kosong
+    if (!coverLetterBuilder) setCoverLetterBuilder(DEFAULT_BUILDER);
+    if (!coverLetterEditor) setCoverLetterEditor(DEFAULT_EDITOR);
+
+    if (!handler || !isAuthenticated) return;
+    (async () => {
       try {
-        setCoverLetterBuilder({
-          id: "",
-          recipientName: "",
-          companyName: "",
-          jobTitle: "",
-          jobDescription: "",
-          tone: "professional",
-        });
-
-        setCoverLetterEditor({
-          id: "",
-          introduction: "",
-          body: "",
-          conclusion: "",
-        });
-
-        if (!isAuthenticated) {
-          return;
-        }
-
-        const [builder, editor] = await Promise.all([
-          coverLetterHandler.clientGetBuilder(),
-          coverLetterHandler.clientGetEditor(),
+        // NB: sesuaikan dgn API handler kamu (clientGetBuilder/clientGetEditor)
+        const [b, e] = await Promise.all([
+          handler.clientGetBuilder?.(),
+          handler.clientGetEditor?.(),
         ]);
-
-        if (builder) {
-          setCoverLetterBuilder(builder);
-        }
-
-        if (editor) {
-          setCoverLetterEditor(editor);
-        }
-      } catch (error) {
-        console.error("Failed to fetch cover letter builder", error);
+        if (b) setCoverLetterBuilder(b as any);
+        if (e) setCoverLetterEditor(e as any);
+      } catch (err) {
+        console.error("fetch cover letter failed:", err);
       }
-    };
-
-    if (coverLetterHandler) {
-      fetchCoverLetter();
-    }
-  }, [isAuthenticated]);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handler, isAuthenticated]);
 
   const generateCoverLetter = async () => {
-    if (!coverLetterBuilder.companyName || !coverLetterBuilder.jobTitle) {
+    if (!builder.companyName || !builder.jobTitle) {
       toast({
         title: "Missing Information",
-        description:
-          "Please fill in the company name and job title to generate a cover letter.",
+        description: "Please fill in the company name and job title to generate a cover letter.",
         variant: "destructive",
       });
       return;
     }
+    if (!handler?.clientGenerateAiCoverLetter) {
+      toast({ title: "Not ready", description: "Handler not ready.", variant: "destructive" });
+      return;
+    }
 
     setIsGenerating(true);
-
     try {
-      const editor = await coverLetterHandler.clientGenerateAiCoverLetter(
-        coverLetterBuilder
-      );
-
-      setCoverLetterEditor(editor);
-
+      const newEditor = await handler.clientGenerateAiCoverLetter(builder as any);
+      setCoverLetterEditor(newEditor as any);
       setActiveTab("editor");
-
-      toast({
-        title: "Cover Letter Generated!",
-        description: "Your AI-generated cover letter is ready for review.",
-      });
-    } catch (e) {
-      toast({
-        title: "Error",
-        description: e.message || "Failed to generate cover letter.",
-        variant: "destructive",
-      });
+      toast({ title: "Cover Letter Generated!", description: "Your AI-generated cover letter is ready for review." });
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message || "Failed to generate cover letter.", variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleSave = async () => {
-    if (!coverLetterBuilder.companyName || !coverLetterBuilder.jobTitle) {
+    if (!builder.companyName || !builder.jobTitle) {
       toast({
         title: "Missing required fields",
         description: "Company name & job title are required to save.",
@@ -169,70 +125,45 @@ export const CoverLetterBuilder: React.FC = () => {
       });
       return;
     }
-
+    if (!handler?.clientSave) {
+      toast({ title: "Not ready", description: "Handler not ready.", variant: "destructive" });
+      return;
+    }
     try {
-      toast({
-        title: "Saved",
-        description: "Your cover letter has been saved.",
-      });
-
-      await coverLetterHandler.clientSave(coverLetterBuilder, coverLetterEditor);
-    } catch (e) {
-      toast({
-        title: "Save failed",
-        description: e.message || "Please try again.",
-        variant: "destructive",
-      });
+      await handler.clientSave(builder as any, editor as any);
+      toast({ title: "Saved", description: "Your cover letter has been saved." });
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e?.message || "Please try again.", variant: "destructive" });
     }
   };
 
   const handleUseTemplate = (templateId: (typeof templates)[number]["id"]) => {
     if (templateId === "traditional") {
       updateCoverLetterEditor({
-        ...coverLetterEditor,
-        introduction: `Dear ${
-          coverLetterBuilder.recipientName || "Hiring Manager"
-        },\n\nI am writing to express my interest in the ${
-          coverLetterBuilder.jobTitle
-        } position at ${coverLetterBuilder.companyName}.`,
+        introduction: `Dear ${builder.recipientName || "Hiring Manager"},\n\nI am writing to express my interest in the ${builder.jobTitle} position at ${builder.companyName}.`,
         body: `In my previous roles, I have developed skills closely aligned with this role. I collaborate well across teams and enjoy delivering impact.`,
-        conclusion: `Thank you for your time and consideration. I look forward to discussing how I can contribute to ${coverLetterBuilder.companyName}.\n\nSincerely,\n[Your Name]`,
+        conclusion: `Thank you for your time and consideration. I look forward to discussing how I can contribute to ${builder.companyName}.\n\nSincerely,\n[Your Name]`,
       });
     }
     if (templateId === "modern") {
       updateCoverLetterEditor({
-        ...coverLetterEditor,
-        introduction: `Hello ${
-          coverLetterBuilder.recipientName || "Hiring Manager"
-        },\n\nI’m excited about the ${coverLetterBuilder.jobTitle} role at ${
-          coverLetterBuilder.companyName
-        }.`,
+        introduction: `Hello ${builder.recipientName || "Hiring Manager"},\n\nI’m excited about the ${builder.jobTitle} role at ${builder.companyName}.`,
         body: `I bring hands-on experience in fast-paced environments and love solving real problems with thoughtful engineering and collaboration.`,
-        conclusion: `I’d love to connect and share how I can help ${coverLetterBuilder.companyName} reach its goals.\n\nBest,\n[Your Name]`,
+        conclusion: `I’d love to connect and share how I can help ${builder.companyName} reach its goals.\n\nBest,\n[Your Name]`,
       });
     }
     if (templateId === "creative") {
       updateCoverLetterEditor({
-        ...coverLetterEditor,
-        introduction: `Hi ${
-          coverLetterBuilder.recipientName || "Hiring Manager"
-        },\n\nAs a creative professional, I see ${
-          coverLetterBuilder.companyName
-        } as the perfect canvas for the ${coverLetterBuilder.jobTitle} role.`,
+        introduction: `Hi ${builder.recipientName || "Hiring Manager"},\n\nAs a creative professional, I see ${builder.companyName} as the perfect canvas for the ${builder.jobTitle} role.`,
         body: `My approach blends curiosity with execution. I’ve shipped campaigns/features that balanced fresh ideas with measurable outcomes.`,
-        conclusion: `Thanks for reviewing my application—I’d be thrilled to bring that energy to ${coverLetterBuilder.companyName}.\n\nCheers,\n[Your Name]`,
+        conclusion: `Thanks for reviewing my application—I’d be thrilled to bring that energy to ${builder.companyName}.\n\nCheers,\n[Your Name]`,
       });
     }
     if (templateId === "tech") {
       updateCoverLetterEditor({
-        ...coverLetterEditor,
-        introduction: `Dear ${
-          coverLetterBuilder.recipientName || "Hiring Manager"
-        },\n\nI’m applying for ${coverLetterBuilder.jobTitle} at ${
-          coverLetterBuilder.companyName
-        }.`,
+        introduction: `Dear ${builder.recipientName || "Hiring Manager"},\n\nI’m applying for ${builder.jobTitle} at ${builder.companyName}.`,
         body: `I’ve built and maintained production systems, focused on reliability, performance, and developer experience. I enjoy pairing and writing clean, tested code.`,
-        conclusion: `I’d welcome the chance to discuss how I can contribute to ${coverLetterBuilder.companyName}'s roadmap.\n\nRegards,\n[Your Name]`,
+        conclusion: `I’d welcome the chance to discuss how I can contribute to ${builder.companyName}'s roadmap.\n\nRegards,\n[Your Name]`,
       });
     }
     setActiveTab("editor");
@@ -241,24 +172,14 @@ export const CoverLetterBuilder: React.FC = () => {
   const handleExport = () => {
     const content = getFullCoverLetter().trim();
     if (!content) {
-      toast({
-        title: "Nothing to export",
-        description: "Generate or write content first.",
-        variant: "destructive",
-      });
+      toast({ title: "Nothing to export", description: "Generate or write content first.", variant: "destructive" });
       return;
     }
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const safeCompany = (coverLetterBuilder.companyName || "Company").replace(
-      /\s+/g,
-      "_"
-    );
-    const safeRole = (coverLetterBuilder.jobTitle || "Role").replace(
-      /\s+/g,
-      "_"
-    );
+    const safeCompany = (builder.companyName || "Company").replace(/\s+/g, "_");
+    const safeRole = (builder.jobTitle || "Role").replace(/\s+/g, "_");
     a.href = url;
     a.download = `cover_letter_${safeCompany}_${safeRole}.txt`;
     document.body.appendChild(a);
@@ -266,14 +187,11 @@ export const CoverLetterBuilder: React.FC = () => {
     a.remove();
     URL.revokeObjectURL(url);
 
-    toast({
-      title: "Exported",
-      description: "Your cover letter was downloaded as .txt.",
-    });
+    toast({ title: "Exported", description: "Your cover letter was downloaded as .txt." });
   };
 
   const getFullCoverLetter = () =>
-    `${coverLetterEditor.introduction}\n\n${coverLetterEditor.body}\n\n${coverLetterEditor.conclusion}`;
+    `${editor.introduction}\n\n${editor.body}\n\n${editor.conclusion}`.trim();
 
   return (
     <Card>
@@ -284,11 +202,7 @@ export const CoverLetterBuilder: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs
-          value={activeTab}
-          onValueChange={(v: TabType) => setActiveTab(v)}
-          className="space-y-4"
-        >
+        <Tabs value={activeTab} onValueChange={(v: TabType) => setActiveTab(v)} className="space-y-4">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="builder">Builder</TabsTrigger>
             <TabsTrigger value="editor">Editor</TabsTrigger>
@@ -296,6 +210,7 @@ export const CoverLetterBuilder: React.FC = () => {
             <TabsTrigger value="preview">Preview</TabsTrigger>
           </TabsList>
 
+          {/* Builder */}
           <TabsContent value="builder" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-4">
@@ -303,10 +218,8 @@ export const CoverLetterBuilder: React.FC = () => {
                   <Label htmlFor="companyName">Company Name *</Label>
                   <Input
                     id="companyName"
-                    value={coverLetterBuilder.companyName}
-                    onChange={(e) =>
-                      updateCoverLetterBuilder({ companyName: e.target.value })
-                    }
+                    value={builder.companyName}
+                    onChange={(e) => updateCoverLetterBuilder({ companyName: e.target.value })}
                     placeholder="Enter company name"
                   />
                 </div>
@@ -315,10 +228,8 @@ export const CoverLetterBuilder: React.FC = () => {
                   <Label htmlFor="jobTitle">Job Title *</Label>
                   <Input
                     id="jobTitle"
-                    value={coverLetterBuilder.jobTitle}
-                    onChange={(e) =>
-                      updateCoverLetterBuilder({ jobTitle: e.target.value })
-                    }
+                    value={builder.jobTitle}
+                    onChange={(e) => updateCoverLetterBuilder({ jobTitle: e.target.value })}
                     placeholder="Enter job title"
                   />
                 </div>
@@ -327,12 +238,8 @@ export const CoverLetterBuilder: React.FC = () => {
                   <Label htmlFor="recipientName">Recipient Name</Label>
                   <Input
                     id="recipientName"
-                    value={coverLetterBuilder.recipientName}
-                    onChange={(e) =>
-                      updateCoverLetterBuilder({
-                        recipientName: e.target.value,
-                      })
-                    }
+                    value={builder.recipientName}
+                    onChange={(e) => updateCoverLetterBuilder({ recipientName: e.target.value })}
                     placeholder="Hiring Manager (optional)"
                   />
                 </div>
@@ -342,10 +249,8 @@ export const CoverLetterBuilder: React.FC = () => {
                 <div>
                   <Label htmlFor="tone">Tone</Label>
                   <Select
-                    value={coverLetterBuilder.tone}
-                    onValueChange={(value) =>
-                      updateCoverLetterBuilder({ tone: value })
-                    }
+                    value={builder.tone}
+                    onValueChange={(value) => updateCoverLetterBuilder({ tone: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -361,17 +266,11 @@ export const CoverLetterBuilder: React.FC = () => {
                 </div>
 
                 <div>
-                  <Label htmlFor="jobDescription">
-                    Job Description (Optional)
-                  </Label>
+                  <Label htmlFor="jobDescription">Job Description (Optional)</Label>
                   <Textarea
                     id="jobDescription"
-                    value={coverLetterBuilder.jobDescription}
-                    onChange={(e) =>
-                      updateCoverLetterBuilder({
-                        jobDescription: e.target.value,
-                      })
-                    }
+                    value={builder.jobDescription}
+                    onChange={(e) => updateCoverLetterBuilder({ jobDescription: e.target.value })}
                     placeholder="Paste job description for better customization"
                     rows={6}
                   />
@@ -380,12 +279,7 @@ export const CoverLetterBuilder: React.FC = () => {
             </div>
 
             <div className="flex justify-center">
-              <Button
-                onClick={generateCoverLetter}
-                disabled={isGenerating}
-                size="lg"
-                className="flex items-center space-x-2"
-              >
+              <Button onClick={generateCoverLetter} disabled={isGenerating} size="lg" className="flex items-center space-x-2">
                 {isGenerating ? (
                   <>
                     <Wand2 className="w-4 h-4 animate-spin" />
@@ -401,16 +295,15 @@ export const CoverLetterBuilder: React.FC = () => {
             </div>
           </TabsContent>
 
+          {/* Editor */}
           <TabsContent value="editor" className="space-y-4">
             <div className="space-y-4">
               <div>
                 <Label htmlFor="introduction">Introduction</Label>
                 <Textarea
                   id="introduction"
-                  value={coverLetterEditor.introduction}
-                  onChange={(e) =>
-                    updateCoverLetterEditor({ introduction: e.target.value })
-                  }
+                  value={editor.introduction}
+                  onChange={(e) => updateCoverLetterEditor({ introduction: e.target.value })}
                   placeholder="Write your opening paragraph..."
                   rows={4}
                 />
@@ -420,10 +313,8 @@ export const CoverLetterBuilder: React.FC = () => {
                 <Label htmlFor="body">Body</Label>
                 <Textarea
                   id="body"
-                  value={coverLetterEditor.body}
-                  onChange={(e) =>
-                    updateCoverLetterEditor({ body: e.target.value })
-                  }
+                  value={editor.body}
+                  onChange={(e) => updateCoverLetterEditor({ body: e.target.value })}
                   placeholder="Write the main content of your cover letter..."
                   rows={8}
                 />
@@ -433,10 +324,8 @@ export const CoverLetterBuilder: React.FC = () => {
                 <Label htmlFor="conclusion">Conclusion</Label>
                 <Textarea
                   id="conclusion"
-                  value={coverLetterEditor.conclusion}
-                  onChange={(e) =>
-                    updateCoverLetterEditor({ conclusion: e.target.value })
-                  }
+                  value={editor.conclusion}
+                  onChange={(e) => updateCoverLetterEditor({ conclusion: e.target.value })}
                   placeholder="Write your closing paragraph..."
                   rows={4}
                 />
@@ -455,21 +344,15 @@ export const CoverLetterBuilder: React.FC = () => {
             </div>
           </TabsContent>
 
+          {/* Templates */}
           <TabsContent value="templates" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {templates.map((t) => (
-                <div
-                  key={t.id}
-                  className="border rounded-lg p-4 hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all"
-                >
+                <div key={t.id} className="border rounded-lg p-4 hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all">
                   <div className="space-y-2">
                     <h3 className="font-semibold">{t.name}</h3>
                     <p className="text-sm text-gray-600">{t.description}</p>
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => handleUseTemplate(t.id)}
-                    >
+                    <Button size="sm" className="w-full" onClick={() => handleUseTemplate(t.id)}>
                       Use Template
                     </Button>
                   </div>
@@ -478,12 +361,12 @@ export const CoverLetterBuilder: React.FC = () => {
             </div>
           </TabsContent>
 
+          {/* Preview */}
           <TabsContent value="preview" className="space-y-4">
             <div className="bg-white border rounded-lg p-8 max-w-2xl mx-auto">
               <div className="space-y-4 text-sm leading-relaxed">
                 <div className="whitespace-pre-wrap">
-                  {getFullCoverLetter() ||
-                    "Generate or write your cover letter to see the preview."}
+                  {getFullCoverLetter() || "Generate or write your cover letter to see the preview."}
                 </div>
               </div>
             </div>
