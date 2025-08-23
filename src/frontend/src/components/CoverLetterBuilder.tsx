@@ -26,6 +26,7 @@ export const CoverLetterBuilder: React.FC = () => {
     setCoverLetterEditor,
     updateCoverLetterBuilder,
     updateCoverLetterEditor,
+    coverLetterHandler,
   } = useResumeStore();
 
   const { coverLetterBuilder, coverLetterEditor } = resumeData;
@@ -69,59 +70,6 @@ export const CoverLetterBuilder: React.FC = () => {
     },
   ] as const;
 
-  const { authClient, isAuthenticated } = useAuth();
-
-  const coverLetterHandler = useMemo(() => {
-    if (authClient) {
-      return createCoverLetterHandler(authClient);
-    }
-    return null;
-  }, [authClient]);
-
-  useEffect(() => {
-    const fetchCoverLetter = async () => {
-      try {
-        setCoverLetterBuilder({
-          id: "",
-          recipientName: "",
-          companyName: "",
-          jobTitle: "",
-          jobDescription: "",
-          tone: "professional",
-        });
-
-        setCoverLetterEditor({
-          id: "",
-          introduction: "",
-          body: "",
-          conclusion: "",
-        });
-
-        if (!isAuthenticated) {
-          return;
-        }
-
-        const [builder, editor] = await Promise.all([
-          coverLetterHandler.clientGetBuilder(),
-          coverLetterHandler.clientGetEditor(),
-        ]);
-
-        if (builder) {
-          setCoverLetterBuilder(builder);
-        }
-
-        if (editor) {
-          setCoverLetterEditor(editor);
-        }
-      } catch (error) {
-        console.error("Failed to fetch cover letter builder", error);
-      }
-    };
-
-    if (coverLetterHandler) {
-      fetchCoverLetter();
-    }
-  }, [isAuthenticated]);
 
   const generateCoverLetter = async () => {
     if (!coverLetterBuilder.companyName || !coverLetterBuilder.jobTitle) {
