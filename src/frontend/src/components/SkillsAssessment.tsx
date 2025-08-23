@@ -40,6 +40,13 @@ export const SkillsAssessment: React.FC = () => {
     [selectedSkill]
   );
 
+  useEffect(() => {
+    if (selectedSkill && questions.length > 0) {
+      setAnswers(Array(questions.length).fill(undefined)); // panjangnya pas, tapi tetap gunakan "" saat render
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSkill, questions.length]);
+
   const startAssessment = (skillId: string) => {
     setSelectedSkill(skillId);
     setCurrentQuestion(0);
@@ -255,17 +262,21 @@ export const SkillsAssessment: React.FC = () => {
               </h3>
 
               <RadioGroup
-                value={answers[currentQuestion]?.toString()}
-                onValueChange={(v) => handleAnswer(parseInt(v))}
+                // selalu string; jangan pernah undefined
+                value={answers[currentQuestion] !== undefined ? String(answers[currentQuestion]) : ""}
+                onValueChange={(v) => handleAnswer(parseInt(v, 10))}
               >
-                {questions[currentQuestion]?.options.map((option, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <RadioGroupItem value={index.toString()} id={`option-${index}`} />
-                    <Label htmlFor={`option-${index}`} className="cursor-pointer">
-                      {option}
-                    </Label>
-                  </div>
-                ))}
+                {questions[currentQuestion]?.options.map((option, index) => {
+                  const rid = `${questions[currentQuestion]?.id}-opt-${index}`; // id unik per pertanyaan
+                  return (
+                    <div key={index} className="flex items-center space-x-2">
+                      <RadioGroupItem value={String(index)} id={rid} />
+                      <Label htmlFor={rid} className="cursor-pointer">
+                        {option}
+                      </Label>
+                    </div>
+                  );
+                })}
               </RadioGroup>
             </div>
 
