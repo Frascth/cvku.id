@@ -48,8 +48,6 @@ export function createEducationHandler(authClient: AuthClient) {
             gpa: toOptionalMo(edu.gpa)
         }));
 
-        console.log('request', newEdus);
-
         const result = await actor.clientBatchUpdate(newEdus);
 
         const updatedEdus = result.map(edu => ({
@@ -58,14 +56,23 @@ export function createEducationHandler(authClient: AuthClient) {
             gpa: toOptionalTs(edu.gpa)
         }));
 
-        console.log('response', updatedEdus);
-
         return updatedEdus;
     },
 
     clientDeleteById: async (id:string):Promise<boolean> => {
       return await actor.clientDeleteById(BigInt(id));
     },
+
+
+    clientGenerateAiDesc: async (degree: string): Promise<string[]> => {
+      const response = await actor.clientGenerateAiDescription({degree});
+
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with education service");
+      }
+
+      return response.ok.data;
+    }
 
   };
 }

@@ -73,6 +73,7 @@ export interface Education {
   institution: string;
   graduationDate: string;
   gpa?: string;
+  description: string;
 }
 
 export interface Skill {
