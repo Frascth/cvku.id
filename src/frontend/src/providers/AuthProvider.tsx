@@ -5,6 +5,7 @@ import { canisterId } from '../../../declarations/auth_service/index.js';
 import { ActorSubclass } from '@dfinity/agent';
 import { _SERVICE } from '../../../declarations/auth_service/auth_service.did.js';
 import { AuthContext } from '@/contexts/AuthContext.js';
+import { useResumeStore } from '@/store/useResumeStore.js';
 
 // Penting: Pastikan DFX_NETWORK ini diakses dengan benar oleh bundler Anda (misalnya Vite, Webpack)
 // Untuk Vite, gunakan import.meta.env.VITE_DFX_NETWORK
@@ -30,8 +31,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [actor, setActor] = useState<ActorSubclass<_SERVICE> | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [principal, setPrincipal] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+    const {
+      initializeHandlers,
+    } = useResumeStore();
 
   const updateAuth = async () => {
+    setIsLoading(true);
     // AuthClient perlu dibuat dengan identityProvider yang benar dari awal
     // PENTING: Anda membuat AuthClient di sini tanpa identityProvider yang spesifik.
     // Ini akan menggunakan default (yang bisa jadi identity.ic0.app).
@@ -60,6 +66,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
       setPrincipal(""); // Reset principal jika tidak authenticated
     }
+
+    setIsLoading(false);
   };
 
   const login = async () => {
@@ -96,13 +104,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     updateAuth();
   }, []); // Dependensi kosong agar hanya berjalan sekali saat komponen mount
 
+  useEffect(() => {
+    if (authClient) {
+      initializeHandlers(authClient);
+    }
+  }, [authClient]);
+
   return (
     <AuthContext.Provider
       value={{
         actor,
         authClient,
         isAuthenticated,
-        isLoading: !authClient, // Asumsi loading state is true until authClient is initialized
+        isLoading: isLoading,
         principal,
         login,
         logout,

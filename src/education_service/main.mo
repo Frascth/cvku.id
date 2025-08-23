@@ -1,9 +1,9 @@
 import Map "mo:map/Map";
 import Principal "mo:base/Principal";
 import Iter "mo:base/Iter";
-import Array "mo:base/Array";
 import Text "mo:base/Text";
 import Error "mo:base/Error";
+import Nat "mo:base/Nat";
 import { nhash } "mo:map/Map";
 import LLM "mo:llm";
 import Type "../shared/Type";
@@ -13,19 +13,8 @@ persistent actor EducationService {
 
   private var nextId : Nat = 0;
 
-  public shared query ({ caller }) func clientGetAll() : async [Type.Education] {
-    switch (Map.get(eduByPrincipal, Map.phash, caller)) {
-      case (?eduById) {
-        return Iter.toArray(Map.vals(eduById));
-      };
-      case null {
-        return [];
-      };
-    };
-  };
-
-  // caller is canister resume_service
-  public shared query ({ caller = _ }) func getAllByClient(client : Principal) : async [Type.Education] {
+  // helper for internal canister
+  private func _getAllByClient(client : Principal) : [Type.Education] {
     switch (Map.get(eduByPrincipal, Map.phash, client)) {
       case (?eduById) {
         return Iter.toArray(Map.vals(eduById));
@@ -36,15 +25,29 @@ persistent actor EducationService {
     };
   };
 
+  // getter for another canister
+  public shared query ({ caller = _ }) func getAllByClient(client : Principal) : async [Type.Education] {
+    return _getAllByClient(client);
+  };
+
+  // getter for client / fe canister
+  public shared query ({ caller }) func clientGetAll() : async Type.Response<[Type.Education]> {
+    return #ok({
+      data = _getAllByClient(caller);
+      message = "Success get educations";
+    });
+  };
+
   public shared ({ caller }) func clientAdd(
     request : {
+      lid : Text;
       degree : Text;
       institution : Text;
       graduationDate : Text;
       gpa : ?Text;
       description : Text;
     }
-  ) : async Type.Education {
+  ) : async Type.Response<Type.CreatedResponse> {
     nextId += 1;
 
     let newEdu : Type.Education = {
@@ -65,45 +68,72 @@ persistent actor EducationService {
 
     Map.set(eduByPrincipal, Map.phash, caller, eduById);
 
-    return newEdu;
+    return #ok({
+      data = {
+        lid = request.lid;
+        id = newEdu.id;
+      };
+      message = "Success create education";
+    });
   };
 
-  public shared ({ caller }) func clientBatchUpdate(newEdus : [Type.Education]) : async [Type.Education] {
+  public shared ({ caller }) func clientBatchUpdate(newEdus : [Type.Education]) : async Type.Response<()> {
     let eduById = switch (Map.get(eduByPrincipal, Map.phash, caller)) {
-      case (?edus) edus;
-      case null return [];
+      case null {
+        return #err({
+          message = "Empty educations";
+        });
+      };
+      case (?values) values;
     };
 
-    var updatedEdus : [Type.Education] = [];
-
-    for (exp in newEdus.vals()) {
-      switch (Map.get(eduById, nhash, exp.id)) {
-        case (?_) {
-          Map.set(eduById, nhash, exp.id, exp);
-          updatedEdus := Array.append(updatedEdus, [exp]);
+    for (newEdu in newEdus.vals()) {
+      switch (Map.get(eduById, nhash, newEdu.id)) {
+        case null {
+          // no id match do nothing
         };
-        case null {};
+        case (?_) {
+          Map.set(eduById, nhash, newEdu.id, newEdu);
+        };
       };
     };
 
     Map.set(eduByPrincipal, Map.phash, caller, eduById);
 
-    return updatedEdus;
+    return #ok({
+      data = ();
+      message = "Success update educations";
+    });
   };
 
-  public shared ({ caller }) func clientDeleteById(id : Nat) : async Bool {
+  public shared ({ caller }) func clientDeleteById(request : { id : Nat }) : async Type.Response<Type.DeletedResponse> {
     let expById = switch (Map.get(eduByPrincipal, Map.phash, caller)) {
+      case null {
+        return #err({
+          message = "Empty educations";
+        });
+      };
       case (?val) val;
-      case null return false;
     };
 
-    return switch (Map.remove(expById, nhash, id)) {
-      case (?_) true;
-      case null false;
+    return switch (Map.remove(expById, nhash, request.id)) {
+      case null {
+        return #err({
+          message = "Education with ID " # Nat.toText(request.id) # " not found";
+        });
+      };
+      case (?_) {
+        return #ok({
+          data = {
+            id = request.id;
+          };
+          message = "Success delete education";
+        });
+      };
     };
   };
 
-  public query func descriptionPromptOf(degree : Text) : async Text {
+  private func descriptionPromptOf(degree : Text) : Text {
     let prompt = "Based on the following education degree, infer 3 realistic and quantifiable resume bullet points. " #
     "Focus solely on extracting quantifiable academic or project-based achievements relevant to the degree. " #
     "**Only return the points, separated by one pipeline characters |. No intro, no explanation, no conversational text before or after the points.** " #
@@ -127,7 +157,7 @@ persistent actor EducationService {
       degree : Text;
     }
   ) : async Type.Response<[Text]> {
-    let prompt = await descriptionPromptOf(request.degree);
+    let prompt = descriptionPromptOf(request.degree);
 
     let result : Text = await LLM.prompt(#Llama3_1_8B, prompt);
 

@@ -16,47 +16,31 @@ export const EducationForm: React.FC = () => {
     setEducation,
     addEducation,
     updateEducation,
+    updateEducationId,
     removeEducation,
+    educationHandler,
   } = useResumeStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
-  const { authClient } = useAuth();
-
-  const educationHandler = useMemo(() => {
-    if (authClient) {
-      return createEducationHandler(authClient);
-    }
-    return null;
-  }, [authClient]);
-
-  useEffect(() => {
-    const fetchEducation = async () => {
-      try {
-        const edus = await educationHandler.clientGetAll();
-
-        setEducation(edus);
-      } catch (error) {
-        console.error("Failed to fetch educations", error);
-      }
-    };
-
-    if (educationHandler) {
-      fetchEducation();
-    }
-  }, [educationHandler, setEducation]);
-
-  const handleAdd = async (experience: Omit<Education, "id">) => {
+  const handleAdd = async (edu: Omit<Education, "id">) => {
     try {
-      const addedEducation = await educationHandler.clientAdd(experience);
-
-      addEducation(addedEducation);
-
-      setShowAddForm(false);
+      addEducation({
+        ...edu,
+        id: crypto.randomUUID(),
+      });
 
       toast({
         title: "Education Added",
-        description: `${addedEducation.degree} added.`,
+        description: `${edu.degree} added.`,
       });
+
+      setShowAddForm(false);
+
+      const lid = crypto.randomUUID();
+
+      const addedEducation = await educationHandler.clientAdd(lid, edu);
+
+      updateEducationId(lid, addedEducation.id);
     } catch (error) {
       console.error(error);
 
@@ -70,17 +54,15 @@ export const EducationForm: React.FC = () => {
 
   const handleRemove = async (id: string) => {
     try {
-      const isDeleted = await educationHandler.clientDeleteById(id);
-
       removeEducation(id);
 
       toast({
-        title: isDeleted ? "Education Deleted" : "Failed to delete education",
-        description: isDeleted
-          ? "The selected education was successfully removed."
-          : "It may have already been deleted or not found.",
-        variant: isDeleted ? "default" : "destructive",
+        title: "Education Deleted",
+        description: "The selected education was successfully removed.",
+        variant: "default",
       });
+
+      await educationHandler.clientDeleteById(id);
     } catch (error) {
       console.error(error);
 
@@ -94,16 +76,16 @@ export const EducationForm: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const updatedEdus = await educationHandler.clientSave(
-        resumeData.education
-      );
-
-      setEducation(updatedEdus);
 
       toast({
         title: "Saved!",
         description: "Education has been saved successfully.",
       });
+
+      await educationHandler.clientSave(
+        resumeData.education
+      );
+
     } catch (error) {
       console.error(error);
 

@@ -12,36 +12,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { createPersonalInfoHandler } from "@/lib/personalInfoHandler";
 
 export const PersonalInfoForm: React.FC = () => {
-  const { resumeData, resetPersonalInfo, updatePersonalInfo } =
+  const { resumeData, resetPersonalInfo, updatePersonalInfo, personalInfoHandler } =
     useResumeStore();
   const { personalInfo } = resumeData;
   const { toast } = useToast();
-  const { authClient } = useAuth();
-
-  const personalInfoHandler = useMemo(() => {
-    if (authClient) {
-      return createPersonalInfoHandler(authClient);
-    }
-    return null;
-  }, [authClient]);
-
-  useEffect(() => {
-    const fetchPersonalInfo = async () => {
-      try {
-        resetPersonalInfo();
-
-        const personalInfo = await personalInfoHandler.clientGet();
-
-        updatePersonalInfo(personalInfo);
-      } catch (error) {
-        console.error("Failed to fetch personal info", error);
-      }
-    };
-
-    if (personalInfoHandler) {
-      fetchPersonalInfo();
-    }
-  }, [personalInfoHandler, resetPersonalInfo, updatePersonalInfo]);
 
   const handleSave = async () => {
     try {

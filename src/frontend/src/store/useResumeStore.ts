@@ -5,6 +5,15 @@ import { AuthClient } from "@dfinity/auth-client";
 import { createCertificationHandler } from "../lib/certificationHandler";
 import { createSkillsHandler } from "../lib/skillsHandler";
 import { isValidUrl } from "@/lib/utils";
+import { createPersonalInfoHandler } from "@/lib/personalInfoHandler";
+import { createWorkExperienceHandler } from "@/lib/workExperienceHandler";
+import { createEducationHandler } from "@/lib/educationHandler";
+import { createCustomSectionHandler } from "@/lib/customSectionHandler";
+import { createSocialHandler } from "@/lib/socialHandler";
+import { createCoverLetterHandler } from "@/lib/coverLetterHandler";
+import { createAtsHandler } from "@/lib/atsHandler";
+import { createResumeScoreHandler } from "@/lib/resumeScoreHandler";
+import { createResumeHandler } from "@/lib/resumeHandler";
 
 /* =========================
  * Types
@@ -68,6 +77,7 @@ export interface WorkExperience {
 }
 
 export interface Education {
+  lid?: string; // for optimistic update
   id: string;
   degree: string;
   institution: string;
@@ -154,11 +164,15 @@ export interface ATSCheck { name: string; passed: boolean; tip: string }
 export interface ATSCategory { category: string; checks: ATSCheck[] }
 
 export interface ResumeStore {
+  initialResumeData: ResumeData;
   resumeData: ResumeData;
   selectedTemplate: "minimal" | "modern" | "professional";
   isPrivate: boolean;
   hasHydrated: boolean;
   currentPrincipal: string | null;
+
+  // resume
+  updateResume: (patch: Partial<ResumeData>) => void;
 
   // --- ATS report ---
   atsScore: number | null;
@@ -177,7 +191,7 @@ export interface ResumeStore {
   }) => void;
   clearResumeScore: () => void;
 
-    // --- Assessment (hasil + badge di Skills) ---
+  // --- Assessment (hasil + badge di Skills) ---
   assessment: Record<string, AssessmentResult>;           // key = skillId assessment
   setAssessmentResult: (r: AssessmentResult) => void;
   clearAssessmentForSkill: (skillId: string) => void;
@@ -190,8 +204,17 @@ export interface ResumeStore {
   getBadgeForSkillName: (skillName: string) => SkillBadge | undefined;
 
   // handlers
-  certificationHandler: ReturnType<typeof createCertificationHandler> | null;
+  resumeHandler: ReturnType<typeof createResumeHandler> | null;
+  personalInfoHandler: ReturnType<typeof createPersonalInfoHandler> | null;
+  workExperienceHandler: ReturnType<typeof createWorkExperienceHandler> | null;
+  educationHandler: ReturnType<typeof createEducationHandler> | null;
   skillsHandler: ReturnType<typeof createSkillsHandler> | null;
+  certificationHandler: ReturnType<typeof createCertificationHandler> | null;
+  customSectionHandler: ReturnType<typeof createCustomSectionHandler> | null;
+  socialHandler: ReturnType<typeof createSocialHandler> | null;
+  coverLetterHandler: ReturnType<typeof createCoverLetterHandler> | null;
+  atsHandler: ReturnType<typeof createAtsHandler> | null;
+  scoreHandler: ReturnType<typeof createResumeScoreHandler> | null;
   initializeHandlers: (authClient: AuthClient) => void;
 
   // Skills
@@ -223,6 +246,7 @@ export interface ResumeStore {
   setEducation: (experiences: Education[]) => void;
   addEducation: (education: Education) => void;
   updateEducation: (id: string, education: Partial<Education>) => void;
+  updateEducationId: (lid: string, id: string) => void;
   removeEducation: (id: string) => void;
   addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => void;
   setSocialLink: (params: { socialLinks: SocialLink[] }) => void;
@@ -327,16 +351,35 @@ type SC = StateCreator<ResumeStore, [], []>;
 
 const createStoreImpl: SC = (set, get) => ({
   // ===== default state =====
+  initialResumeData: initialResumeData,
   resumeData: initialResumeData,
   selectedTemplate: "modern",
   isPrivate: false,
+  resumeHandler: null,
+  personalInfoHandler: null,
+  workExperienceHandler: null,
+  educationHandler: null,
+  customSectionHandler: null,
+  socialHandler: null,
+  coverLetterHandler: null,
   certificationHandler: null,
   skillsHandler: null,
+  atsHandler: null,
+  scoreHandler: null,
   hasHydrated: false,
   currentPrincipal: null,
   coverLetterBuilder: defaultCoverLetterBuilder,
   coverLetterEditor: defaultCoverLetterEditor,
 
+
+  // resume
+  updateResume: (patch) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        ...patch
+      },
+    })),
 
   // ===== ATS =====
   atsScore: null,
@@ -365,8 +408,8 @@ const createStoreImpl: SC = (set, get) => ({
       resumeScoreImprovements: [],
     })),
 
-    // ===== Assessment =====
-    // ===== Assessment results =====
+  // ===== Assessment =====
+  // ===== Assessment results =====
   assessment: {},
   setAssessmentResult: (r) =>
     set((s) => ({
@@ -412,6 +455,7 @@ const createStoreImpl: SC = (set, get) => ({
   initializeHandlers: (authClient) => {
     try {
       const pid = authClient.getIdentity().getPrincipal().toText();
+
       const prev = get().currentPrincipal;
 
       // principal berubah → bersihkan state per-user
@@ -426,24 +470,29 @@ const createStoreImpl: SC = (set, get) => ({
           resumeScoreImprovements: [],
           assessment: {},          // ← hasil assessment direset
           skillBadges: {},
-          resumeData: {
-            ...state.resumeData,
-            skills: [],
-            // jika ingin, kosongkan koleksi lain juga saat ganti akun:
-            // certifications: [], socialLinks: [], customSections: []
-          },
+          resumeData: initialResumeData,
         }));
       }
 
       // set handlers
       set({
-        certificationHandler: createCertificationHandler(authClient),
+        resumeHandler: createResumeHandler(authClient),
+        personalInfoHandler: createPersonalInfoHandler(authClient),
+        workExperienceHandler: createWorkExperienceHandler(authClient),
+        educationHandler: createEducationHandler(authClient),
         skillsHandler: createSkillsHandler(authClient),
+        certificationHandler: createCertificationHandler(authClient),
+        customSectionHandler: createCustomSectionHandler(authClient),
+        socialHandler: createSocialHandler(authClient),
+        coverLetterHandler: createCoverLetterHandler(authClient),
+        atsHandler: createAtsHandler(authClient),
+        scoreHandler: createResumeScoreHandler(authClient),
       });
 
+      // really only init handlers, fetch moved into src/frontend/src/components/ResumeForm.tsx
       // fetch data server untuk principal ini (handler sudah siap)
-      void get().fetchSkills?.();
-      void get().fetchCertifications?.();
+      // void get().fetchSkills?.();
+      // void get().fetchCertifications?.();
     } catch (error) {
       console.error("Failed to initialize handlers:", error);
     }
@@ -697,6 +746,16 @@ const createStoreImpl: SC = (set, get) => ({
         ...state.resumeData,
         education: state.resumeData.education.map((edu) =>
           edu.id === id ? { ...edu, ...patch } : edu
+        ),
+      },
+    })),
+
+  updateEducationId: (lid, id) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        education: state.resumeData.education.map((edu) =>
+          edu.lid === lid ? { ...edu, id: id } : edu
         ),
       },
     })),
