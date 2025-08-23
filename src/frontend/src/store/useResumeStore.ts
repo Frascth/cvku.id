@@ -68,6 +68,7 @@ export interface WorkExperience {
 }
 
 export interface Education {
+  lid?: string; // for optimistic update
   id: string;
   degree: string;
   institution: string;
@@ -177,7 +178,7 @@ export interface ResumeStore {
   }) => void;
   clearResumeScore: () => void;
 
-    // --- Assessment (hasil + badge di Skills) ---
+  // --- Assessment (hasil + badge di Skills) ---
   assessment: Record<string, AssessmentResult>;           // key = skillId assessment
   setAssessmentResult: (r: AssessmentResult) => void;
   clearAssessmentForSkill: (skillId: string) => void;
@@ -223,6 +224,7 @@ export interface ResumeStore {
   setEducation: (experiences: Education[]) => void;
   addEducation: (education: Education) => void;
   updateEducation: (id: string, education: Partial<Education>) => void;
+  updateEducationId: (lid: string, id: string) => void;
   removeEducation: (id: string) => void;
   addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => void;
   setSocialLink: (params: { socialLinks: SocialLink[] }) => void;
@@ -341,8 +343,8 @@ const createStoreImpl: SC = (set, get) => ({
       resumeScoreImprovements: [],
     })),
 
-    // ===== Assessment =====
-    // ===== Assessment results =====
+  // ===== Assessment =====
+  // ===== Assessment results =====
   assessment: {},
   setAssessmentResult: (r) =>
     set((s) => ({
@@ -673,6 +675,16 @@ const createStoreImpl: SC = (set, get) => ({
         ...state.resumeData,
         education: state.resumeData.education.map((edu) =>
           edu.id === id ? { ...edu, ...patch } : edu
+        ),
+      },
+    })),
+
+  updateEducationId: (lid, id) =>
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        education: state.resumeData.education.map((edu) =>
+          edu.lid === lid ? { ...edu, id: id } : edu
         ),
       },
     })),
