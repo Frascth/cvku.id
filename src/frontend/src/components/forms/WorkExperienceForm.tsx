@@ -19,40 +19,10 @@ export const WorkExperienceForm: React.FC = () => {
     addWorkExperience,
     updateWorkExperience,
     removeWorkExperience,
+    workExperienceHandler,
   } = useResumeStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
-
-  const { authClient, isAuthenticated } = useAuth();
-
-  const workExpHandler = useMemo(() => {
-    if (authClient) {
-      return createWorkExperienceHandler(authClient);
-    }
-    return null;
-  }, [authClient]);
-
-  useEffect(() => {
-    const fetchExperience = async () => {
-      try {
-        if (! isAuthenticated) {
-          setWorkExperience([]);
-
-          return;
-        }
-
-        const exps = await workExpHandler.clientGetAll();
-
-        setWorkExperience(exps);
-      } catch (error) {
-        console.error("Failed to fetch work experiences", error);
-      }
-    };
-
-    if (workExpHandler) {
-      fetchExperience();
-    }
-  }, [isAuthenticated]);
 
   const handleAdd = async (experience: WorkExperience) => {
     try {
@@ -72,7 +42,7 @@ export const WorkExperienceForm: React.FC = () => {
         description: `${experience.jobTitle} added.`,
       });
 
-      const addedExperience = await workExpHandler.clientAdd(lid, experience);
+      const addedExperience = await workExperienceHandler.clientAdd(lid, experience);
 
       updateWorkExperienceId(lid, addedExperience.id);
     } catch (error) {
@@ -94,7 +64,7 @@ export const WorkExperienceForm: React.FC = () => {
         description: "The selected work experience was successfully removed.",
       });
 
-      await workExpHandler.clientDeleteById(id);
+      await workExperienceHandler.clientDeleteById(id);
     } catch (error) {
       console.error(error);
 
@@ -112,7 +82,7 @@ export const WorkExperienceForm: React.FC = () => {
         title: "Saved!",
         description: "Work experience has been saved successfully.",
       });
-      await workExpHandler.clientSave(resumeData.workExperience);
+      await workExperienceHandler.clientSave(resumeData.workExperience);
     } catch (error) {
       console.error(error);
 
@@ -128,7 +98,7 @@ export const WorkExperienceForm: React.FC = () => {
     jobTitle: string
   ): Promise<string> => {
     try {
-      const result = await workExpHandler.clientGenerateAiDesc(jobTitle);
+      const result = await workExperienceHandler.clientGenerateAiDesc(jobTitle);
 
       toast({
         title: "Description Generated!",

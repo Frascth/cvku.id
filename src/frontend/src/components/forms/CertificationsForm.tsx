@@ -55,7 +55,7 @@ export const CertificationsForm: React.FC = () => {
         // Fetch data setelah handler terinisialisasi
         await fetchCertifications();
 
-      } catch (err: any) {
+      } catch (err) {
         console.error("Failed to load certifications:", err);
         setError(err.message || "Failed to load certifications.");
       } finally {
@@ -81,7 +81,7 @@ export const CertificationsForm: React.FC = () => {
         description: "Certification added successfully.",
         variant: "default", // Ubah ke "default" jika "success" tidak didukung
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to add certification:", err);
       setError(err.message || "Failed to add certification.");
       toast({
@@ -104,7 +104,7 @@ export const CertificationsForm: React.FC = () => {
         description: "Certification changes staged. Click Save All to commit.",
         variant: "default", // Ubah ke "default"
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to update certification:", err);
       setError(err.message || "Failed to update certification.");
       toast({
@@ -128,7 +128,7 @@ export const CertificationsForm: React.FC = () => {
         description: "Certification removed successfully.",
         variant: "default", // Ubah ke "default"
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to remove certification:", err);
       setError(err.message || "Failed to remove certification.");
       toast({
@@ -152,7 +152,7 @@ export const CertificationsForm: React.FC = () => {
         description: "All certifications have been saved successfully to the backend.",
         variant: "default", // Ubah ke "default"
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to save all certifications:", err);
       setError(err.message || "Failed to save all certifications.");
       toast({

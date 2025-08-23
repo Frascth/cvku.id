@@ -18,34 +18,10 @@ export const EducationForm: React.FC = () => {
     updateEducation,
     updateEducationId,
     removeEducation,
+    educationHandler,
   } = useResumeStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
-  const { authClient } = useAuth();
-
-  const educationHandler = useMemo(() => {
-    if (authClient) {
-      return createEducationHandler(authClient);
-    }
-    return null;
-  }, [authClient]);
-
-  useEffect(() => {
-    const fetchEducation = async () => {
-      try {
-        const edus = await educationHandler.clientGetAll();
-
-        setEducation(edus);
-      } catch (error) {
-        console.error("Failed to fetch educations", error);
-      }
-    };
-
-    if (educationHandler) {
-      fetchEducation();
-    }
-  }, [educationHandler, setEducation]);
-
   const handleAdd = async (edu: Omit<Education, "id">) => {
     try {
       addEducation({

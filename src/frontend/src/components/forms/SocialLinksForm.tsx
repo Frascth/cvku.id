@@ -58,6 +58,7 @@ export const SocialLinksForm: React.FC = () => {
     updateSocialLink,
     updateSocialLinkId,
     removeSocialLink,
+    socialHandler,
   } = useResumeStore();
 
   const { socialLinks } = resumeData;
@@ -72,38 +73,6 @@ export const SocialLinksForm: React.FC = () => {
   const [showEdit, setShowEdit] = useState(null);
 
   const { toast } = useToast();
-
-  const { authClient, isAuthenticated } = useAuth();
-
-  const socialHandler = useMemo(() => {
-    if (authClient) {
-      return createSocialHandler(authClient);
-    }
-
-    return null;
-  }, [authClient]);
-
-  useEffect(() => {
-    const fetchSocialLinks = async () => {
-      try {
-        let socialLinks = [];
-
-        if (isAuthenticated) {
-          socialLinks = await socialHandler.clientGetAll();
-        }
-
-        setSocialLink({
-          socialLinks: socialLinks,
-        });
-      } catch (error) {
-        console.error("Failed to fetch social links", error);
-      }
-    };
-
-    if (socialHandler) {
-      fetchSocialLinks();
-    }
-  }, [socialHandler, setSocialLink, isAuthenticated]);
 
   const handleAddLink = async () => {
     try {

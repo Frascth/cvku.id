@@ -21,44 +21,12 @@ export const CustomSectionForm: React.FC = () => {
     removeCustomSection,
     addCustomSectionItem,
     updateCustomSectionItemId,
+    customSectionHandler,
   } = useResumeStore();
   const [newSectionName, setNewSectionName] = useState("");
   const [showAddSection, setShowAddSection] = useState(false);
   const [showAddItem, setShowAddItem] = useState(false);
   const { toast } = useToast();
-
-  const { authClient, isAuthenticated } = useAuth();
-
-  const customSectionHandler = useMemo(() => {
-    if (authClient) {
-      return createCustomSectionHandler(authClient);
-    }
-
-    return null;
-  }, [authClient]);
-
-  useEffect(() => {
-    const fetchCustomSections = async () => {
-      try {
-        let customSections = [];
-
-        if (isAuthenticated) {
-          customSections = await customSectionHandler.clientGetAll();
-        }
-
-        setCustomSection({
-          sections: customSections
-        });
-
-      } catch (error) {
-        console.error("Failed to fetch custom sections", error);
-      }
-    };
-
-    if (customSectionHandler) {
-      fetchCustomSections();
-    }
-  }, [customSectionHandler, setCustomSection, isAuthenticated]);
 
   const handleAddSection = async () => {
     try {
