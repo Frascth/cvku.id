@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GraduationCap, Plus, Trash2, Save, Wand2 } from "lucide-react";
+import { GraduationCap, Plus, Trash2, Save, Wand2, ListEnd } from "lucide-react";
 import { useResumeStore, Education } from "../../store/useResumeStore";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,8 +24,11 @@ export const EducationForm: React.FC = () => {
   const { toast } = useToast();
   const handleAdd = async (edu: Omit<Education, "id">) => {
     try {
+      const lid = crypto.randomUUID();
+
       addEducation({
         ...edu,
+        lid: lid,
         id: crypto.randomUUID(),
       });
 
@@ -35,8 +38,6 @@ export const EducationForm: React.FC = () => {
       });
 
       setShowAddForm(false);
-
-      const lid = crypto.randomUUID();
 
       const addedEducation = await educationHandler.clientAdd(lid, edu);
 
@@ -51,6 +52,10 @@ export const EducationForm: React.FC = () => {
       });
     }
   };
+
+  useEffect(() => {
+    console.log(resumeData.education);
+  }, [resumeData.education]);
 
   const handleRemove = async (id: string) => {
     try {

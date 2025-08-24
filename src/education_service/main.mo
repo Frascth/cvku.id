@@ -31,14 +31,14 @@ persistent actor EducationService {
   };
 
   // getter for client / fe canister
-  public shared query ({ caller }) func clientGetAll_v2() : async Type.Response<[Type.Education]> {
+  public shared query ({ caller }) func clientGetAll() : async Type.Response<[Type.Education]> {
     return #ok({
       data = _getAllByClient(caller);
       message = "Success get educations";
     });
   };
 
-  public shared ({ caller }) func clientAdd_v2(
+  public shared ({ caller }) func clientAdd(
     request : {
       lid : Text;
       degree : Text;
@@ -77,7 +77,7 @@ persistent actor EducationService {
     });
   };
 
-  public shared ({ caller }) func clientBatchUpdate_v2(newEdus : [Type.Education]) : async Type.Response<()> {
+  public shared ({ caller }) func clientBatchUpdate(newEdus : [Type.Education]) : async Type.Response<()> {
     let eduById = switch (Map.get(eduByPrincipal, Map.phash, caller)) {
       case null {
         return #err({
@@ -106,7 +106,7 @@ persistent actor EducationService {
     });
   };
 
-  public shared ({ caller }) func clientDeleteById_v2(request : { id : Nat }) : async Type.Response<Type.DeletedResponse> {
+  public shared ({ caller }) func clientDeleteById(request : { id : Nat }) : async Type.Response<Type.DeletedResponse> {
     let expById = switch (Map.get(eduByPrincipal, Map.phash, caller)) {
       case null {
         return #err({
@@ -133,7 +133,7 @@ persistent actor EducationService {
     };
   };
 
-  private func _descriptionPromptOf(degree : Text) : Text {
+  private func descriptionPromptOf(degree : Text) : Text {
     let prompt = "Based on the following education degree, infer 3 realistic and quantifiable resume bullet points. " #
     "Focus solely on extracting quantifiable academic or project-based achievements relevant to the degree. " #
     "**Only return the points, separated by one pipeline characters |. No intro, no explanation, no conversational text before or after the points.** " #
@@ -152,12 +152,12 @@ persistent actor EducationService {
     return prompt;
   };
 
-  public shared ({ caller = _ }) func clientGenerateAiDescription_v2(
+  public shared ({ caller = _ }) func clientGenerateAiDescription(
     request : {
       degree : Text;
     }
   ) : async Type.Response<[Text]> {
-    let prompt = _descriptionPromptOf(request.degree);
+    let prompt = descriptionPromptOf(request.degree);
 
     let result : Text = await LLM.prompt(#Llama3_1_8B, prompt);
 
@@ -183,74 +183,5 @@ persistent actor EducationService {
       message = "Success generate description.";
     });
   };
-
-  // ========== V1 (kompatibel dengan old.did) ==========
-
-  // clientAdd v1: TANPA `lid`, return Education
-  public shared ({ caller }) func clientAdd(
-    req : {
-      degree : Text;
-      institution : Text;
-      graduationDate : Text;
-      gpa : ?Text;
-      description : Text;
-    }
-  ) : async Type.Education {
-    let lid = Principal.toText(caller);
-    switch (await clientAdd_v2({ lid; degree = req.degree; institution = req.institution; graduationDate = req.graduationDate; gpa = req.gpa; description = req.description })) {
-      case (#ok created) {
-        // Ambil data yang baru dibuat dari storage
-        let all = _getAllByClient(caller);
-        for (e in all.vals()) {
-          if (e.id == created.data.id) { return e };
-        };
-        // fallback (kalau belum kebaca dari map)
-        return {
-          id = created.data.id;
-          degree = req.degree;
-          institution = req.institution;
-          graduationDate = req.graduationDate;
-          gpa = req.gpa;
-          description = req.description;
-        };
-      };
-      case (#err e) { throw Error.reject(e.message) };
-    };
-  };
-
-  // clientBatchUpdate v1: return vec Education
-  public shared ({ caller }) func clientBatchUpdate(newEdus : [Type.Education]) : async [Type.Education] {
-    switch (await clientBatchUpdate_v2(newEdus)) {
-      case (#ok _) { return _getAllByClient(caller) };
-      case (#err e) { throw Error.reject(e.message) };
-    };
-  };
-
-  // clientDeleteById v1: argumen nat, return bool
-  public shared ({ caller = _ }) func clientDeleteById(id : Nat) : async Bool {
-    switch (await clientDeleteById_v2({ id })) {
-      case (#ok _) true;
-      case (#err _) false;
-    };
-  };
-  // clientGetAll v1: return vec Education (query)
-  public shared query ({ caller }) func clientGetAll() : async [Type.Education] {
-    return _getAllByClient(caller);
-  };
-
-  // clientGenerateAiDescription v1: nama lama tetap ada
-  public shared ({ caller = _ }) func clientGenerateAiDescription(
-    request : { degree : Text }
-  ) : async Type.Response<[Text]> {
-    switch (await clientGenerateAiDescription_v2(request)) {
-      case (#ok okRes) { #ok({ data = okRes.data; message = okRes.message }) };
-      case (#err errRes) { #err(errRes) };
-    };
-  };
-
-  // kembalikan endpoint publik descriptionPromptOf (query)
-  public shared query func descriptionPromptOf(degree : Text) : async Text {
-    return _descriptionPromptOf(degree);
-  }
 
 };
