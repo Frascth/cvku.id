@@ -63,23 +63,45 @@ export function createSkillsHandler(authClient: AuthClient) {
     },
 
     // Tambah 1 skill (langsung ke backend, lalu FE append)
-    clientAdd: async (data: Omit<Skill, "id">): Promise<Skill> => {
-      const req = toBackendAddRequest(data);
-      const added = await actor.clientAddSkill(req); // BackendSkillRaw
-      return toFrontendSkill(added);
+    clientAdd: async (lid: string, data: Omit<Skill, "id">): Promise<Skill> => {
+      const req = {
+        lid: lid,
+        ...toBackendAddRequest(data)
+      };
+      const response = await actor.clientAddSkill(req); // BackendSkillRaw
+
+      if ('err' in response) {
+        throw new Error(response.err.message || "Something went wrong with skills service");
+      }
+
+      return {
+        ...data,
+        id: response.ok.data.id.toString()
+      };
     },
 
     // Batch update (save semua)
-    clientSave: async (skills: Skill[]): Promise<Skill[]> => {
-      if (skills.length === 0) return [];
+    clientSave: async (skills: Skill[]): Promise<void> => {
+      if (skills.length === 0) return;
+
       const raw = skills.map(toBackendSkillRaw);
-      const updated = await actor.clientBatchUpdateSkills(raw); // BackendSkillRaw[]
-      return updated.map(toFrontendSkill);
+
+      const resonse = await actor.clientBatchUpdateSkills(raw); // BackendSkillRaw[]
+
+      if ('err' in resonse) {
+        throw new Error(resonse.err.message || "Something went wrong with skills service");
+      }
     },
 
     // Hapus by id
-    clientDeleteById: async (id: string): Promise<boolean> => {
-      return await actor.clientDeleteSkillById(id);
+    clientDeleteById: async (id: string): Promise<string> => {
+      const response = await actor.clientDeleteSkillById(id);
+
+      if ('err' in response) {
+        throw new Error(response.err.message || "Something went wrong with skills service");
+      }
+
+      return response.ok.data.id.toString();
     },
   };
 }

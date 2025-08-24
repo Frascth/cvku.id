@@ -53,10 +53,6 @@ export const EducationForm: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    console.log(resumeData.education);
-  }, [resumeData.education]);
-
   const handleRemove = async (id: string) => {
     try {
       removeEducation(id);

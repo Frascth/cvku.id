@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,8 +27,9 @@ export const SkillsForm: React.FC = () => {
 
   const handleSaveAllSkills = async () => {
     try {
-      await saveAllSkills();
       toast({ title: 'Success', description: 'All skills have been saved.' });
+
+      await saveAllSkills();
     } catch (error) {
       console.error('Failed to save skills:', error);
       toast({
@@ -48,6 +49,10 @@ export const SkillsForm: React.FC = () => {
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  useEffect(() => {
+    console.log(resumeData.skills);
+  }, [resumeData.skills]);
 
   return (
     <Card className="animate-fade-in">
@@ -131,15 +136,13 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
   });
 
   const handleSubmit = () => {
-    if (formData.name) {
-      // cast level di sini supaya nggak ganggu UI/markup
-      onAdd({ name: formData.name, level: formData.level as SkillLevel });
-      setFormData({ name: '', level: 'Intermediate' });
-    }
+    // cast level di sini supaya nggak ganggu UI/markup
+    onAdd({ name: formData.name, level: formData.level as SkillLevel });
+    setFormData({ name: '', level: 'Intermediate' });
   };
 
   return (
-    <div className="p-4 border-2 border-dashed border-blue-200 rounded-lg space-y-3">
+    <form onSubmit={(e) => { e.preventDefault(); handleSubmit() }} className="p-4 border-2 border-dashed border-blue-200 rounded-lg space-y-3">
       <h4 className="font-medium text-gray-900">Add Skill</h4>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -149,6 +152,7 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="JavaScript, React, etc."
+            required
           />
         </div>
         <div>
@@ -156,6 +160,7 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
           <Select
             value={formData.level}
             onValueChange={(value) => setFormData({ ...formData, level: value })}
+            required
           >
             <SelectTrigger>
               <SelectValue />
@@ -171,9 +176,9 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onAdd, onCancel }) => {
       </div>
 
       <div className="flex space-x-2">
-        <Button onClick={handleSubmit} size="sm">Add Skill</Button>
+        <Button type="submit" size="sm">Add Skill</Button>
         <Button onClick={onCancel} variant="outline" size="sm">Cancel</Button>
       </div>
-    </div>
+    </form>
   );
 };
