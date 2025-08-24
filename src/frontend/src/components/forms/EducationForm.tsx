@@ -3,12 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GraduationCap, Plus, Trash2, Save, Wand2, ListEnd } from "lucide-react";
+import {
+  GraduationCap,
+  Plus,
+  Trash2,
+  Save,
+  Wand2,
+  ListEnd,
+} from "lucide-react";
 import { useResumeStore, Education } from "../../store/useResumeStore";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { createEducationHandler } from "@/lib/educationHandler";
 import { Textarea } from "../ui/textarea";
+import { isBackendId } from "@/lib/utils";
 
 export const EducationForm: React.FC = () => {
   const {
@@ -81,16 +89,12 @@ export const EducationForm: React.FC = () => {
 
   const handleSave = async () => {
     try {
-
       toast({
         title: "Saved!",
         description: "Education has been saved successfully.",
       });
 
-      await educationHandler.clientSave(
-        resumeData.education
-      );
-
+      await educationHandler.clientSave(resumeData.education);
     } catch (error) {
       console.error(error);
 
@@ -304,6 +308,7 @@ const EducationItem: React.FC<EducationItemProps> = ({
           variant="ghost"
           size="sm"
           className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-2"
+          disabled={!isBackendId(education.id)}
         >
           <Trash2 className="w-4 h-4" />
         </Button>

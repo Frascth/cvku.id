@@ -10,6 +10,7 @@ import { useResumeStore, WorkExperience } from "../../store/useResumeStore";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { createWorkExperienceHandler } from "@/lib/workExperienceHandler";
+import { isBackendId } from "@/lib/utils";
 
 export const WorkExperienceForm: React.FC = () => {
   const {
@@ -303,6 +304,7 @@ const ExperienceItem: React.FC<ExperienceItemProps> = ({
           variant="ghost"
           size="sm"
           className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-2"
+          disabled={!isBackendId(experience.id)}
         >
           <Trash2 className="w-4 h-4" />
         </Button>

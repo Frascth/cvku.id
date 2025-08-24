@@ -38,97 +38,100 @@ export const ResumeForm: React.FC = () => {
     customSectionHandler,
     socialHandler,
     coverLetterHandler,
+    areHandlersReady,
   } = useResumeStore();
 
-  const { authClient, isAuthenticated } = useAuth();
+  const { isLoading } = useAuth();
 
   useEffect(() => {
     const fetchResume = async () => {
       try {
+        if (isLoading || ! areHandlersReady()) {
+          return;
+        }
+
         let patch: ResumeData = initialResumeData;
 
-        if (isAuthenticated) {
-          const [
-            personalInfo,
-            workExps,
-            edus,
-            skills,
-            certs,
-            customSections,
-            socialLinks,
-            coverLetterBuilder,
-            coverLetterEditor,
-            resumeLink,
-          ]: [
-            PersonalInfo,
-            WorkExperience[],
-            Education[],
-            Skill[],
-            Certification[],
-            CustomSection[],
-            SocialLink[],
-            CoverLetterBuilder,
-            CoverLetterEditor,
-            ResumeLink
-          ] = await Promise.all([
-            personalInfoHandler.clientGet(),
-            workExperienceHandler.clientGetAll(),
-            educationHandler.clientGetAll(),
-            skillsHandler.clientGetAll(),
-            certificationHandler.clientGetAll(),
-            customSectionHandler.clientGetAll(),
-            socialHandler.clientGetAll(),
-            coverLetterHandler.clientGetBuilder(),
-            coverLetterHandler.clientGetEditor(),
-            resumeHandler.clientGetResumeLink(),
-          ]);
+        const [
+          personalInfo,
+          workExps,
+          edus,
+          skills,
+          certs,
+          customSections,
+          socialLinks,
+          coverLetterBuilder,
+          coverLetterEditor,
+          resumeLink,
+        ]: [
+          PersonalInfo,
+          WorkExperience[],
+          Education[],
+          Skill[],
+          Certification[],
+          CustomSection[],
+          SocialLink[],
+          CoverLetterBuilder,
+          CoverLetterEditor,
+          ResumeLink
+        ] = await Promise.all([
+          personalInfoHandler.clientGet(),
+          workExperienceHandler.clientGetAll(),
+          educationHandler.clientGetAll(),
+          skillsHandler.clientGetAll(),
+          certificationHandler.clientGetAll(),
+          customSectionHandler.clientGetAll(),
+          socialHandler.clientGetAll(),
+          coverLetterHandler.clientGetBuilder(),
+          coverLetterHandler.clientGetEditor(),
+          resumeHandler.clientGetResumeLink(),
+        ]);
 
-          patch = {
-            personalInfo: personalInfo ?? {
-              fullName: "",
-              email: "",
-              phone: "",
-              location: "",
-              website: "",
-              bio: "",
+        patch = {
+          personalInfo: personalInfo ?? {
+            fullName: "",
+            email: "",
+            phone: "",
+            location: "",
+            website: "",
+            bio: "",
+          },
+          workExperience: workExps ?? [],
+          education: edus ?? [],
+          skills: skills ?? [],
+          certifications: certs ?? [],
+          coverLetterBuilder: {
+            ...{
+              id: "",
+              recipientName: "",
+              companyName: "",
+              jobTitle: "",
+              jobDescription: "",
+              tone: "professional",
             },
-            workExperience: workExps ?? [],
-            education: edus ?? [],
-            skills: skills ?? [],
-            certifications: certs ?? [],
-            coverLetterBuilder: {
-              ...{
-                id: "",
-                recipientName: "",
-                companyName: "",
-                jobTitle: "",
-                jobDescription: "",
-                tone: "professional",
-              },
-              ...(coverLetterBuilder ?? {}),
+            ...(coverLetterBuilder ?? {}),
+          },
+          coverLetterEditor: {
+            ...{
+              id: "",
+              introduction: "",
+              body: "",
+              conclusion: "",
             },
-            coverLetterEditor: {
-              ...{
-                id: "",
-                introduction: "",
-                body: "",
-                conclusion: "",
-              },
-              ...(coverLetterEditor ?? {}),
+            ...(coverLetterEditor ?? {}),
+          },
+          socialLinks: socialLinks ?? [],
+          customSections: customSections ?? [],
+          resumeLink: {
+            ...{
+              lid: "",
+              id: "",
+              path: "",
+              isPublic: true,
             },
-            socialLinks: socialLinks ?? [],
-            customSections: customSections ?? [],
-            resumeLink: {
-              ...{
-                lid: "",
-                id: "",
-                path: "",
-                isPublic: true,
-              },
-              ...(resumeLink ?? {}),
-            },
-          };
-        }
+            ...(resumeLink ?? {}),
+          },
+        };
 
         updateResume(patch);
       } catch (error) {
@@ -137,7 +140,7 @@ export const ResumeForm: React.FC = () => {
     };
 
     fetchResume();
-  }, [isAuthenticated]);
+  }, [isLoading, areHandlersReady]);
 
   return (
     <div className="space-y-6">

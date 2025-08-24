@@ -34,11 +34,12 @@ persistent actor CertificationService {
 
     // Menambah entri sertifikasi baru untuk caller saat ini
     public shared ({ caller }) func clientAdd(request: {
+        lid: Text;
         name: Text;
         issuer: Text;
         date: Text;
         credentialId: ?Text;
-    }) : async Type.Certification {
+    }) : async Type.Response<Type.CreatedResponse> {
         nextId += 1; // Increment Nat ID
 
         let newCertification: Type.Certification = {
@@ -62,14 +63,34 @@ persistent actor CertificationService {
         // Simpan kembali map pengguna yang sudah diperbarui ke map utama
         Map.set(certificationByPrincipal, Map.phash, caller, certificationById);
 
-        return newCertification;
+        let natId = switch(Nat.fromText(newCertification.id)) {
+            case (null) {
+                return #err({
+                    message = "Invalid certification id";
+                });
+            };
+            case (?val) val;
+        };
+
+        return #ok({
+            data = {
+                lid = request.lid;
+                id = natId;
+            };
+            message = "Successs certification added";
+        });
     };
 
     // Memperbarui entri sertifikasi secara batch untuk caller saat ini
-    public shared ({ caller }) func clientBatchUpdate(newCertifications: [Type.Certification]) : async [Type.Certification] {
+    public shared ({ caller }) func clientBatchUpdate(newCertifications: [Type.Certification]) : async Type.Response<()> {
         let certById = switch (Map.get(certificationByPrincipal, Map.phash, caller)) {
+            case null {
+                return #ok({
+                    data = ();
+                    message = "Success update certification";
+                });
+            };
             case (?val) val;
-            case null return [];
         };
 
         var updatedCertifications : [Type.Certification] = [];
@@ -87,22 +108,49 @@ persistent actor CertificationService {
 
         Map.set(certificationByPrincipal, Map.phash, caller, certById);
 
-        return updatedCertifications;
+        return #ok({
+            data = ();
+            message = "Success update certification";
+        });
     };
 
     // Menghapus entri sertifikasi berdasarkan ID untuk caller saat ini
-    public shared ({ caller }) func clientDeleteById(id: Text) : async Bool { // ID yang diterima sekarang Text
+    public shared ({ caller }) func clientDeleteById(id: Text) : async Type.Response<Type.DeletedResponse> { // ID yang diterima sekarang Text
         let maybeCertById = Map.get(certificationByPrincipal, Map.phash, caller);
 
         let certById = switch maybeCertById {
+            case null {
+                return #err({
+                    message = "Empty certification";
+                });
+            };
             case (?val) val;
-            case null return false;
+        };
+
+        let natId = switch(Nat.fromText(id)) {
+            case (null) {
+                return #err({
+                    message = "Invalid certification id";
+                });
+            };
+            case (?val) val;
         };
 
         // Gunakan thash dan Text ID
         return switch (Map.remove(certById, Map.thash, id)) {
-            case (?_) true;
-            case null false;
+            case null {
+                return #err({
+                    message = "Certification with ID " # id # " not found";
+                });
+            };
+            case (?_) {
+                return #ok({
+                    data = {
+                        id = natId;
+                    };
+                    message = "Success delete certification";
+                });
+            };
         };
     };
 

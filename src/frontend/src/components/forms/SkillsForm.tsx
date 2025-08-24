@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Zap, Plus, X, Save } from 'lucide-react';
 import { useResumeStore, Skill, SkillLevel } from '../../store/useResumeStore';
 import { useToast } from '@/hooks/use-toast';
+import { isBackendId } from '@/lib/utils';
 
 export const SkillsForm: React.FC = () => {
   const resumeData = useResumeStore(s => s.resumeData);
@@ -91,6 +92,7 @@ export const SkillsForm: React.FC = () => {
                 <button
                   onClick={() => removeSkill(skill.id)}
                   className="ml-1 hover:text-red-600"
+                  disabled={!isBackendId(skill.id)}
                 >
                   <X className="w-3 h-3" />
                 </button>
