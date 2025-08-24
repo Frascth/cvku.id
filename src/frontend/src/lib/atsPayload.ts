@@ -45,6 +45,7 @@ export function buildAtsPayload(data: ResumeData): BEResume {
     institution: e.institution,
     graduationDate: e.graduationDate,
     gpa: opt(e.gpa),
+    description: e.description,
   }));
 
   const skills = data.skills.map((s) => ({

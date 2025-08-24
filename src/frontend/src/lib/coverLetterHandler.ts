@@ -1,81 +1,79 @@
-// src/lib/coverLetterHandler.ts
+import { createActor, canisterId } from "../../../declarations/cover_letter_service";
+import type { AuthClient } from "@dfinity/auth-client";
+import { CoverLetterBuilder, CoverLetterEditor } from "@/store/useResumeStore";
+import { toOptionalTs } from "./moUtils";
 
-// GANTI sesuai nama canister di dfx.json:
-// import { cover_letter_service } from "../../../declarations/cover_letter_service";
-import { coverleter_service } from "../../../declarations/coverleter_service";
+export function createCoverLetterHandler(authClient: AuthClient) {
+  const actor = createActor(canisterId, {
+    agentOptions: {
+      identity: authClient.getIdentity(),
+    },
+  });
 
-export type CoverLetterBuilder = {
-  recipientName: string;
-  companyName: string;
-  jobTitle: string;
-  jobDescription: string;
-  tone: string;
-};
+  return {
 
-export type CoverLetterEditor = {
-  introduction: string;
-  body: string;
-  conclusion: string;
-};
+    clientGetBuilder: async (): Promise<CoverLetterBuilder | null> => {
+      const response = await actor.clientGetBuilder();
 
-const unopt = <T,>(v: any): T | null =>
-  Array.isArray(v) ? (v.length ? (v[0] as T) : null) : ((v ?? null) as T | null);
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with cover letter service");
+      }
 
-// === Generate (LLM) ===
-export async function generateCoverLetterViaCanister(
-  builder: CoverLetterBuilder
-): Promise<CoverLetterEditor | null> {
-  try {
-    // GANTI juga di sini kalau pakai cover_letter_service
-    const res = await coverleter_service.generateCoverLetter(builder);
-    return unopt<CoverLetterEditor>(res);
-  } catch (e) {
-    console.error("generateCoverLetterViaCanister error:", e);
-    return null;
-  }
-}
+      const builder = toOptionalTs(response.ok.data);
 
-// === CRUD (opsional, tapi sudah siap dipakai) ===
-export async function createCoverLetter(
-  builder: CoverLetterBuilder
-): Promise<bigint> {
-  // Nat (Motoko) -> bigint (TS)
-  return /* cover_letter_service */ coverleter_service.createCoverLetter(builder);
-}
+      if (!builder) {
+        return null;
+      }
 
-export async function getCoverLetter(id: bigint): Promise<{
-  id: bigint;
-  builder: CoverLetterBuilder;
-  editor: CoverLetterEditor;
-} | null> {
-  const res = await /* cover_letter_service */ coverleter_service.getCoverLetter(id);
-  return unopt(res);
-}
+      return {
+        ...builder,
+        id: builder.id.toString(),
+      };
+    },
 
-export async function updateCoverLetter(
-  id: bigint,
-  editor: CoverLetterEditor
-): Promise<{
-  id: bigint;
-  builder: CoverLetterBuilder;
-  editor: CoverLetterEditor;
-} | null> {
-  const res = await /* cover_letter_service */ coverleter_service.updateCoverLetter(id, editor);
-  return unopt(res);
-}
+    clientGetEditor: async (): Promise<CoverLetterEditor | null> => {
+      const response = await actor.clientGetEditor();
 
-// === Helper praktis: create-or-update (save draft) ===
-export async function saveDraft(
-  currentId: bigint | null,
-  builder: CoverLetterBuilder,
-  editor: CoverLetterEditor
-): Promise<bigint> {
-  if (currentId == null) {
-    const id = await createCoverLetter(builder);
-    await updateCoverLetter(id, editor);
-    return id;
-  } else {
-    await updateCoverLetter(currentId, editor);
-    return currentId;
-  }
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with cover letter service");
+      }
+
+      const editor = toOptionalTs(response.ok.data);
+
+      if (!editor) {
+        return null;
+      }
+
+      return {
+        ...editor,
+        id: editor.id.toString(),
+      };
+    },
+
+    clientSave: async (builder: Omit<CoverLetterBuilder, 'id'>, editor: Omit<CoverLetterEditor, 'id'>): Promise<void> => {
+      const response = await actor.clientSave(builder, editor);
+
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with cover letter service");
+      }
+
+      return;
+    },
+
+    clientGenerateAiCoverLetter: async (builder: Omit<CoverLetterBuilder, "id">): Promise<CoverLetterEditor> => {
+      const response = await actor.clientGenerateAiCoverLetter(builder);
+
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with cover letter service");
+      }
+
+      const editor = response.ok.data;
+
+      return {
+        ...editor,
+        id: editor.id.toString(),
+      };
+    },
+
+  };
 }

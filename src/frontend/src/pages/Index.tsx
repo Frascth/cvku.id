@@ -1,7 +1,6 @@
-
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   ArrowRight,
   Users,
@@ -10,10 +9,10 @@ import {
   Globe,
   Star,
   CheckCircle,
-  Sparkles
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/use-auth';
+  Sparkles,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
 
 const Index = () => {
   const { login, isAuthenticated } = useAuth();
@@ -22,9 +21,9 @@ const Index = () => {
 
   const handleStartBuildingClick = () => {
     if (isAuthenticated) {
-      navigate('/builder');
+      navigate("/builder");
     } else {
-      navigate('/signin');
+      navigate("/signin");
     }
   };
 
@@ -32,50 +31,68 @@ const Index = () => {
     {
       icon: <Zap className="w-6 h-6" />,
       title: "Lightning Fast",
-      description: "Create professional resumes in minutes with our intuitive editor"
+      description:
+        "Create professional resumes in minutes with our intuitive editor",
     },
     {
       icon: <Shield className="w-6 h-6" />,
       title: "Secure & Private",
-      description: "Your data is encrypted and stored securely with full privacy control"
+      description:
+        "Your data is encrypted and stored securely with full privacy control",
     },
     {
       icon: <Globe className="w-6 h-6" />,
       title: "Decentralized",
-      description: "Built on blockchain technology for true ownership of your data"
+      description:
+        "Built on blockchain technology for true ownership of your data",
     },
     {
       icon: <Sparkles className="w-6 h-6" />,
       title: "AI-Powered",
-      description: "Get smart suggestions and optimizations for better results"
-    }
+      description: "Get smart suggestions and optimizations for better results",
+    },
   ];
 
   const templates = [
-    { name: "Modern", preview: "🎨", description: "Clean and contemporary design" },
-    { name: "Professional", preview: "💼", description: "Classic business format" },
-    { name: "Minimal", preview: "✨", description: "Simple and elegant layout" }
+    {
+      name: "Modern",
+      preview: "🎨",
+      description: "Clean and contemporary design",
+    },
+    {
+      name: "Professional",
+      preview: "💼",
+      description: "Classic business format",
+    },
+    {
+      name: "Minimal",
+      preview: "✨",
+      description: "Simple and elegant layout",
+    },
   ];
 
   const testimonials = [
     {
       name: "Sarah Johnson",
       role: "Software Engineer",
-      content: "CvKu.id helped me land my dream job! The templates are gorgeous and the process is so smooth.",
-      rating: 5
+      content:
+        "CvKu.id helped me land my dream job! The templates are gorgeous and the process is so smooth.",
+      rating: 5,
     },
     {
       name: "Michael Chen",
       role: "Marketing Manager",
-      content: "Finally, a resume builder that respects my privacy. Love the decentralized approach!",
-      rating: 5
+      content:
+        "Finally, a resume builder that respects my privacy. Love the decentralized approach!",
+      rating: 5,
     },
     {
       name: "Emily Rodriguez",
       role: "Designer",
-      content: "The AI suggestions made my resume stand out. Got 3x more interview calls!",
-      rating: 5
-    }
+      content:
+        "The AI suggestions made my resume stand out. Got 3x more interview calls!",
+      rating: 5,
+    },
   ];
 
   return (
@@ -85,24 +102,14 @@ const Index = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-             
-                <img src={"./logo-full.png"}  className="w-32 h-auto"  />
-           
-           
+              <img src={"./logo-full.png"} className="w-32 h-auto" />
             </div>
-            {isAuthenticated ? (
-              <Button onClick={() => navigate('/builder')}>
-                Start Building
+              <Button
+                onClick={handleStartBuildingClick}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4"
+              >
+                Get Started
               </Button>
-            ) : (
-              <div className="flex items-center space-x-4">
-                {/* <Button variant="ghost" onClick={() => navigate('/signin')}>
-                  Sign In
-                </Button> */}
-                <Button onClick={() => navigate('/signin')}>
-                  Get Started
-                </Button>
-              </div>)}
           </div>
         </div>
       </nav>
@@ -112,14 +119,14 @@ const Index = () => {
         <div className="container mx-auto px-4 text-center">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-              Your Resume, Your Way,{' '}
+              Your Resume, Your Way,{" "}
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Decentralized
               </span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Create stunning, professional resumes with complete privacy and control.
-              Built on blockchain technology for true data ownership.
+              Create stunning, professional resumes with complete privacy and
+              control. Built on blockchain technology for true data ownership.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Button
@@ -133,7 +140,7 @@ const Index = () => {
               <Button
                 variant="outline"
                 size="lg"
-                onClick={() => navigate('/live-preview')}
+                onClick={() => navigate("/live-preview")}
               >
                 View Live Demo
               </Button>
@@ -168,12 +175,16 @@ const Index = () => {
               Why Choose CvKu.id?
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              We're not just another resume builder. We're reimagining how your professional data should be handled.
+              We're not just another resume builder. We're reimagining how your
+              professional data should be handled.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
-              <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <Card
+                key={index}
+                className="border-0 shadow-lg hover:shadow-xl transition-shadow"
+              >
                 <CardContent className="p-6 text-center">
                   <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4 text-white">
                     {feature.icon}
@@ -181,9 +192,7 @@ const Index = () => {
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     {feature.title}
                   </h3>
-                  <p className="text-gray-600">
-                    {feature.description}
-                  </p>
+                  <p className="text-gray-600">{feature.description}</p>
                 </CardContent>
               </Card>
             ))}
@@ -210,9 +219,7 @@ const Index = () => {
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     {template.name}
                   </h3>
-                  <p className="text-gray-600 mb-4">
-                    {template.description}
-                  </p>
+                  <p className="text-gray-600 mb-4">{template.description}</p>
                   <Button variant="outline" className="w-full">
                     Preview Template
                   </Button>
@@ -240,14 +247,19 @@ const Index = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center mb-4">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                      <Star
+                        key={i}
+                        className="w-5 h-5 text-yellow-400 fill-current"
+                      />
                     ))}
                   </div>
                   <p className="text-gray-600 mb-4 italic">
                     "{testimonial.content}"
                   </p>
                   <div>
-                    <p className="font-semibold text-gray-900">{testimonial.name}</p>
+                    <p className="font-semibold text-gray-900">
+                      {testimonial.name}
+                    </p>
                     <p className="text-sm text-gray-500">{testimonial.role}</p>
                   </div>
                 </CardContent>
@@ -265,11 +277,12 @@ const Index = () => {
               Ready to Build Your Perfect Resume?
             </h2>
             <p className="text-xl text-blue-100 mb-8">
-              Join thousands of professionals who trust CvKu.id for their career success
+              Join thousands of professionals who trust CvKu.id for their career
+              success
             </p>
             <Button
               size="lg"
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold"
             >
               Get Started Now - It's Free!
@@ -291,31 +304,68 @@ const Index = () => {
                 <span className="text-xl font-bold">CvKu.id</span>
               </div>
               <p className="text-gray-400">
-                The future of resume building is here. Decentralized, secure, and beautiful.
+                The future of resume building is here. Decentralized, secure,
+                and beautiful.
               </p>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">Templates</a></li>
-                <li><a href="#" className="hover:text-white">Features</a></li>
-                <li><a href="#" className="hover:text-white">Pricing</a></li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Templates
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Pricing
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">Help Center</a></li>
-                <li><a href="#" className="hover:text-white">Contact</a></li>
-                <li><a href="#" className="hover:text-white">Privacy</a></li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Help Center
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Contact
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Privacy
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">About</a></li>
-                <li><a href="#" className="hover:text-white">Blog</a></li>
-                <li><a href="#" className="hover:text-white">Careers</a></li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    About
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Blog
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Careers
+                  </a>
+                </li>
               </ul>
             </div>
           </div>

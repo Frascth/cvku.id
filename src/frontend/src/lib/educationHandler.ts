@@ -12,60 +12,82 @@ export function createEducationHandler(authClient: AuthClient) {
 
   return {
 
-    clientGetAll: async ():Promise<Education[]> => {
-      const edus = await actor.clientGetAll();
+    clientGetAll: async (): Promise<Education[]> => {
+      const response = await actor.clientGetAll();
 
-      return edus.map(edu => ({
+      if ('err' in response) {
+        throw new Error(response.err.message || "Something went wrong with education service");
+      }
+
+      return response.ok.data.map(edu => ({
         ...edu,
         id: Number(edu.id),
         gpa: toOptionalTs(edu.gpa)
       }));
     },
 
-    clientAdd: async (data: Omit<Education, "id">): Promise<Education> => {
-        const request = {
-          ...data,
-          gpa: toOptionalMo(data.gpa)
-        };
+    clientAdd: async (lid: string, data: Omit<Education, "id">): Promise<Education> => {
+      const request = {
+        ...data,
+        lid: lid,
+        gpa: toOptionalMo(data.gpa)
+      };
 
-        const addedEdu = await actor.clientAdd(request);
+      const response = await actor.clientAdd(request);
 
-        return {
-            ...addedEdu,
-            id: Number(addedEdu.id),
-            gpa: toOptionalTs(addedEdu.gpa)
-        };
+      if ('err' in response) {
+        throw new Error(response.err.message || "Something went wrong with education service");
+      }
+
+      return {
+        ...data,
+        lid: lid,
+        id: response.ok.data.id.toString(),
+      };
     },
 
-    clientSave: async (edus: Education[]):Promise<Education[]> => {
-        if (edus.length <= 0) {
-            return [];
-        }
+    clientSave: async (edus: Education[]): Promise<void> => {
+      if (edus.length <= 0) {
+        return;
+      }
 
-        const newEdus = edus.map(edu => ({
-            ...edu,
-            id: BigInt(edu.id),
-            gpa: toOptionalMo(edu.gpa)
-        }));
+      const newEdus = edus.map(edu => ({
+        ...edu,
+        id: BigInt(edu.id),
+        gpa: toOptionalMo(edu.gpa)
+      }));
 
-        console.log('request', newEdus);
+      const response = await actor.clientBatchUpdate(newEdus);
 
-        const result = await actor.clientBatchUpdate(newEdus);
+      if ('err' in response) {
+        throw new Error(response.err.message || "Something went wrong with education service");
+      }
 
-        const updatedEdus = result.map(edu => ({
-            ...edu,
-            id: Number(edu.id),
-            gpa: toOptionalTs(edu.gpa)
-        }));
-
-        console.log('response', updatedEdus);
-
-        return updatedEdus;
     },
 
-    clientDeleteById: async (id:number):Promise<boolean> => {
-      return await actor.clientDeleteById(BigInt(id));
+    clientDeleteById: async (id: string): Promise<string> => {
+      const request = {
+        id: BigInt(id),
+      };
+      const response = await actor.clientDeleteById(request);
+
+      if ('err' in response) {
+        throw new Error(response.err.message || "Something went wrong with education service");
+      }
+
+      return response.ok.data.id.toString();
     },
+
+
+    clientGenerateAiDesc: async (degree: string): Promise<string[]> => {
+      const response = await actor.clientGenerateAiDescription({ degree });
+
+      if ('err' in response) {
+        throw new Error(response.err.message ?? "Something went wrong with education service");
+      }
+
+      return response.ok.data;
+    }
 
   };
 }

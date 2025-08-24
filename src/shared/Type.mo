@@ -94,6 +94,7 @@ module {
     institution : Text;
     graduationDate : Text;
     gpa : ?Text;
+    description: Text;
   };
 
   public type Skill = {

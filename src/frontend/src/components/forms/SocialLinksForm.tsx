@@ -39,42 +39,99 @@ export const SocialLinksForm: React.FC = () => {
     updateSocialLink,
     updateSocialLinkId,
     removeSocialLink,
+    socialHandler,
   } = useResumeStore();
 
   const { socialLinks } = resumeData;
   const { toast } = useToast();
   const { authClient, isAuthenticated } = useAuth();
 
-  // form "Add new"
-  const [newLink, setNewLink] = useState<{ platform: string; url: string }>({
+  const [newLink, setNewLink] = useState({
+    lid: crypto.randomUUID(),
+    id: crypto.randomUUID(),
     platform: "",
     url: "",
   });
 
-  // id (number) dari row yang sedang di-edit, atau null
-  const [showEdit, setShowEdit] = useState<number | null>(null);
+  const [showEdit, setShowEdit] = useState(null);
 
-  const socialHandler = useMemo(() => {
-    return authClient ? createSocialHandler(authClient) : null;
-  }, [authClient]);
+  const { toast } = useToast();
 
-  // Fetch awal (sekali saat handler siap)
-  useEffect(() => {
-    const fetchSocialLinks = async () => {
-      try {
-        let rows: SocialLink[] = [];
-        if (isAuthenticated && socialHandler) {
-          rows = await socialHandler.clientGetAll(); // pastikan handler ini mengembalikan id:number
-        }
-        // Set langsung ke store; kalau mau merge, ganti di store-nya
-        setSocialLink({ socialLinks: rows });
-      } catch (error) {
-        console.error("Failed to fetch social links:", error);
-      }
-    };
+  const handleAddLink = async () => {
+    try {
+      const socialLink = { ...newLink };
 
-    if (socialHandler) void fetchSocialLinks();
-  }, [socialHandler, setSocialLink, isAuthenticated]);
+      addSocialLink(socialLink);
+
+      setNewLink({ id: crypto.randomUUID(), lid: crypto.randomUUID(), platform: "", url: "" });
+
+      toast({
+        title: "Success",
+        description: `${newLink.platform} Social link added.`,
+      });
+
+      const addedSocialLink = await socialHandler.clientAdd({
+        lid: socialLink.lid,
+        socialLink: socialLink,
+      });
+
+      updateSocialLinkId({
+        lid: addedSocialLink.lid,
+        id: addedSocialLink.id,
+      });
+    } catch (error) {
+      toast({
+        title: "An Error Occurred",
+        description:
+          error.message || "Something went wrong with the social service.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveLink = async ({ id }: { id: string }) => {
+    try {
+      removeSocialLink(id);
+
+      toast({
+        title: "Success",
+        description: `Social link deleted.`,
+      });
+
+      await socialHandler.clientDelete({
+        id: id,
+      });
+    } catch (error) {
+      toast({
+        title: "An Error Occurred",
+        description:
+          error.message || "Something went wrong with the social service.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateLink = async ({ socialLink }: { socialLink: SocialLink }) => {
+    try {
+      setShowEdit(null);
+
+      toast({
+        title: "Success",
+        description: `Social link updated.`,
+      });
+
+      await socialHandler.clientUpdate({
+        socialLink: socialLink
+      });
+    } catch (error) {
+      toast({
+        title: "An Error Occurred",
+        description:
+          error.message || "Something went wrong with the social service.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const getPlatformIcon = (platform: string) => {
     const platformData = socialPlatforms.find((p) => p.name === platform);

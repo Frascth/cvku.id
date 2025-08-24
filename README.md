@@ -5,10 +5,10 @@ This project addresses common challenges in today's professional world, such as 
 
 # Project Overview
 **Landing**
-<img width="1280" height="589" alt="image" src="https://github.com/user-attachments/assets/d185fe2e-fe01-44cc-9edc-4e1ed3aad2cd" />
+<img width="1345" height="623" alt="Screenshot From 2025-07-25 16-35-47" src="https://github.com/user-attachments/assets/f4eaaa15-c032-4b04-967e-d98f1490a946" />
 
 **Login**
-<img width="1280" height="583" alt="image" src="https://github.com/user-attachments/assets/f13157c2-1f05-42f7-aabc-f04a36a27124" />
+<img width="1345" height="623" alt="Screenshot From 2025-07-25 16-36-02" src="https://github.com/user-attachments/assets/b0b9678b-7cc6-428a-a493-86460db6e971" />
 
 **Resume Builder**
 <img width="1345" height="623" alt="Screenshot From 2025-07-25 17-24-36" src="https://github.com/user-attachments/assets/203c215e-237a-44fd-a215-04e6f3f87754" />
