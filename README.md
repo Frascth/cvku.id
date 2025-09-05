@@ -1,5 +1,5 @@
 # Introduction
-Cvku.id is a decentralized platform that allows users to securely create, store, and share digital resumes through blockchain technology. By leveraging smart contracts on the Internet Computer Protocol (ICP), every entry in a resume—such as education, work experience, and certifications—can be verified directly by the relevant institution without intermediaries, increasing data transparency and authenticity.
+**Cvku.id** is a decentralized platform that allows users to securely create, store, and share digital resumes through blockchain technology. By leveraging smart contracts on the Internet Computer Protocol (ICP), every entry in a resume—such as education, work experience, and certifications—can be verified directly by the relevant institution without intermediaries, increasing data transparency and authenticity.
 
 This project addresses common challenges in today's professional world, such as the difficulty of verifying credentials, lack of control over personal data, and reliance on centralized platforms. With its Web3-based approach, users have full control over their identity and data and can move their resumes across platforms without losing their validity or professional history.
 
@@ -36,7 +36,7 @@ This project addresses common challenges in today's professional world, such as 
 # Features
 1. **AI-Powered Resume Builder**: Leverage advanced artificial intelligence to effortlessly generate tailored resume content, transforming your professional experience into compelling narratives that stand out.
 2. **Real-time Live Preview**: Visualize your resume's final appearance instantly as you make edits, ensuring perfect formatting and layout before export
-3. Customizable Sections: Gain unparalleled flexibility by adding personalized sections, allowing you to highlight unique skills, projects, or experiences relevant to your career goals.
+3. **Customizable Sections**: Gain unparalleled flexibility by adding personalized sections, allowing you to highlight unique skills, projects, or experiences relevant to your career goals.
 4. **ATS Optimization Feedback**: Receive intelligent recommendations and actionable insights to optimize your resume for Applicant Tracking Systems, significantly increasing your chances of passing initial screenings.
 5. **Comprehensive Resume Scoring**: Get an objective evaluation of your resume's strength and competitiveness, identifying areas for improvement to maximize your appeal to recruiters.
 6. **AI Cover Letter Generator**: Craft personalized and impactful cover letters with AI assistance, designed to capture attention and complement your resume for specific job applications.
@@ -87,8 +87,8 @@ This project addresses common challenges in today's professional world, such as 
 11. Deploy canister
     ```bash
     dfx deploy
-12. Open the front end canister url, and start building resume
-
+12. Launch the Resume Builder and Start Creating Your Story
+    
 # ICP Features Used
 1. Caller Identification
 2. Candid Serialization

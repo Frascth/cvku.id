@@ -66,8 +66,7 @@ export interface PersonalInfo {
 }
 
 export interface WorkExperience {
-  lid?: string; // local id for optimistic update
-  id: string;
+  id: number; // nat
   jobTitle: string;
   company: string;
   startDate: string;
@@ -87,6 +86,7 @@ export interface Education {
 }
 
 export interface Skill {
+  lid?: string; // local id for optimistic update
   id: string; // text
   name: string;
   level: SkillLevel;
@@ -101,16 +101,16 @@ export interface Certification {
 }
 
 export interface SocialLink {
-  lid?: string; // local id for optimistic update
-  id: string;
+  lid?: number; // local-only
+  id: number;   // nat
   platform: string;
   url: string;
 }
 
 export interface CustomSectionItem {
-  lid?: string, // local id for optimistic update
-  id: string;
-  sectionId: string;
+  lid?: number; // local-only
+  id: number;   // nat
+  sectionId: number; // nat
   title: string;
   subtitle?: string;
   description: string;
@@ -118,15 +118,15 @@ export interface CustomSectionItem {
 }
 
 export interface CustomSection {
-  lid?: string, // local id for optimistic update
-  id: string;
+  lid?: number; // local-only
+  id: number;   // nat
   name: string;
   items: CustomSectionItem[];
 }
 
 export interface ResumeLink {
-  lid?: string, // local id for optimistic update
-  id: string;
+  lid?: string;
+  id: number;
   path: string;
   isPublic: boolean;
 }
@@ -250,22 +250,26 @@ export interface ResumeStore {
   removeEducation: (id: string) => void;
   addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => void;
   setSocialLink: (params: { socialLinks: SocialLink[] }) => void;
-  updateSocialLink: (id: string, socialLink: Partial<SocialLink>) => void;
-  updateSocialLinkId: (params: { lid: string, id: string }) => void;
-  removeSocialLink: (id: string) => void;
+  updateSocialLink: (id: number, socialLink: Partial<SocialLink>) => void;
+  updateSocialLinkId: (params: { lid: number; id: number }) => void;
+  removeSocialLink: (id: number) => void;
+
+  // Custom sections
   setCustomSection: (params: { sections: CustomSection[] }) => void;
-  addCustomSection: (section: Omit<CustomSection, 'id'>) => void;
-  updateCustomSectionId: (lid: string, id: string) => void;
-  updateCustomSection: (id: string, section: Partial<CustomSection>) => void;
-  removeCustomSection: (id: string) => void;
+  addCustomSection: (section: Omit<CustomSection, "id">) => void;
+  updateCustomSectionId: (lid: number, id: number) => void;
+  updateCustomSection: (id: number, section: Partial<CustomSection>) => void;
+  removeCustomSection: (id: number) => void;
   addCustomSectionItem: (item: CustomSectionItem) => void;
-  updateCustomSectionItemId: (params: { sectionId: string, lid: string, newId: string }) => void;
+  updateCustomSectionItemId: (params: { sectionId: number; lid: number; newId: number }) => void;
+
+  // Resume link
   setResumeLink: (params: { resumeLink: ResumeLink }) => void;
-  updateResumeLinkId: (params: { lid: string, id: string }) => void;
+  updateResumeLinkId: (params: { lid: number; id: number }) => void;
   getResumeLinkUrl: () => string;
 
   // Cover letter
-    // Cover letter (STATE)
+  // Cover letter (STATE)
   coverLetterBuilder: CoverLetterBuilder;
   coverLetterEditor: CoverLetterEditor;
 
@@ -313,9 +317,9 @@ const initialResumeData: ResumeData = {
   socialLinks: [],
   customSections: [],
   resumeLink: {
-    lid: '',
-    id: '',
-    path: '',
+    lid: "",
+    id: 0,
+    path: "",
     isPublic: true,
   },
 };
@@ -455,7 +459,6 @@ const createStoreImpl: SC = (set, get) => ({
   initializeHandlers: (authClient) => {
     try {
       const pid = authClient.getIdentity().getPrincipal().toText();
-
       const prev = get().currentPrincipal;
 
       // principal berubah → bersihkan state per-user
@@ -522,10 +525,7 @@ const createStoreImpl: SC = (set, get) => ({
     const handler = get().skillsHandler;
     if (!handler) throw new Error("Skills handler not initialized.");
     try {
-      const saved = await handler.clientSave(get().resumeData.skills); // Skill[]
-      set((state) => ({
-        resumeData: { ...state.resumeData, skills: saved },
-      }));
+      await handler.clientSave(get().resumeData.skills); // Skill[]
     } catch (err) {
       console.error("Failed to save all skills:", err);
       throw err;
@@ -536,15 +536,34 @@ const createStoreImpl: SC = (set, get) => ({
     const handler = get().skillsHandler;
     if (!handler) throw new Error("Skills handler not initialized.");
     try {
-      const newSkill = await handler.clientAdd(
-        "id" in skill ? { name: skill.name, level: skill.level } : skill
-      );
+      const lid = crypto.randomUUID();
+
+      const tmpSkill = {
+        ...skill,
+        lid: lid,
+        id: crypto.randomUUID(),
+      };
+
       set((state) => ({
         resumeData: {
           ...state.resumeData,
-          skills: [...state.resumeData.skills, newSkill],
+          skills: [...state.resumeData.skills, tmpSkill],
         },
       }));
+
+      const newSkill = await handler.clientAdd(lid, skill);
+
+      set(state => {
+        return {
+          resumeData: {
+            ...state.resumeData,
+            skills: state.resumeData.skills.map((skill) =>
+              skill.lid === lid ? { ...skill, id: newSkill.id } : skill
+            ),
+          },
+        };
+      });
+
     } catch (err) {
       console.error("Failed to add skill:", err);
       throw err;
@@ -565,14 +584,17 @@ const createStoreImpl: SC = (set, get) => ({
     const handler = get().skillsHandler;
     if (!handler) throw new Error("Skills handler not initialized.");
     try {
-      const ok = await handler.clientDeleteById(id);
-      if (!ok) throw new Error("Backend reported failure to delete skill.");
       set((state) => ({
         resumeData: {
           ...state.resumeData,
           skills: state.resumeData.skills.filter((s) => s.id !== id),
         },
       }));
+
+      const ok = await handler.clientDeleteById(id);
+      
+      if (!ok) throw new Error("Backend reported failure to delete skill.");
+
     } catch (err) {
       console.error("Failed to remove skill:", err);
       throw err;
@@ -1048,7 +1070,7 @@ export const useResumeStore = create<ResumeStore>()(
           if (state.currentPrincipal === undefined) state.currentPrincipal = null;
 
           if (!state.coverLetterBuilder) state.coverLetterBuilder = { ...defaultCoverLetterBuilder };
-          if (!state.coverLetterEditor)  state.coverLetterEditor  = { ...defaultCoverLetterEditor };
+          if (!state.coverLetterEditor) state.coverLetterEditor = { ...defaultCoverLetterEditor };
 
           // ⛔️ Jangan fetch di sini (handlers belum di-init).
           // Fetch dilakukan di initializeHandlers setelah handler tersedia.

@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Star, TrendingUp, CheckCircle, Lightbulb } from 'lucide-react';
 import { useResumeStore } from '../store/useResumeStore';
 import { useToast } from '@/hooks/use-toast';
+import { AuthClient } from '@dfinity/auth-client';
+import { createResumeScoreHandler } from '@/lib/resumeScoreHandler';
 
 // Tipe BE (dari .did) untuk bantu konversi
 import type {

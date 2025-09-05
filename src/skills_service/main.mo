@@ -55,9 +55,10 @@ persistent actor SkillsService {
 
     // Menambahkan skill baru untuk caller saat ini
     public shared ({ caller }) func clientAddSkill(request: {
+        lid: Text;
         name: Text;
         level: Type.SkillLevel;
-    }) : async Type.Skill {
+    }) : async Type.Response<Type.CreatedResponse> {
         let id = generateSkillId(); // Menggunakan helper untuk mendapatkan ID Text
 
         let newSkill: Type.Skill = {
@@ -70,11 +71,26 @@ persistent actor SkillsService {
 
         Map.set(skillsById, thash, newSkill.id, newSkill); // <-- Gunakan thash di sini
 
-        return newSkill;
+        let natId = switch(Nat.fromText(newSkill.id)) {
+            case (null) {
+                return #err({
+                    message = "Invalid skill id";
+                });
+            };
+            case (?val) val;
+        };
+
+        return #ok({
+            data = {
+                lid = request.lid;
+                id = natId;
+            };
+            message = "Success add skill";
+        });
     };
 
     // Memperbarui skills yang sudah ada (batch update)
-    public shared ({ caller }) func clientBatchUpdateSkills(newSkills: [Type.Skill]) : async [Type.Skill] {
+    public shared ({ caller }) func clientBatchUpdateSkills(newSkills: [Type.Skill]) : async Type.Response<()> {
         // Ambil atau buat map untuk caller
         let skillsById = getOrCreateSkillsMap(caller);
 
@@ -83,30 +99,50 @@ persistent actor SkillsService {
             Map.set(skillsById, thash, skill.id, skill);
         };
 
-        // Kembalikan snapshot FULL setelah update (bukan sekadar input)
-        return Iter.toArray(Map.vals(skillsById));
+        return #ok({
+            data = ();
+            message = "Success update skills";
+        });
     };
 
     // Menghapus skill berdasarkan ID
-    public shared ({ caller }) func clientDeleteSkillById(id: Text) : async Bool {
+    public shared ({ caller }) func clientDeleteSkillById(id: Text) : async Type.Response<Type.DeletedResponse> {
         // Debug.print("Motoko: Attempting to delete skill with ID: " # id); // Uncomment jika ingin logging
 
         let skillsById = switch (Map.get(skillsByPrincipal, Map.phash, caller)) {
-            case (?val) val;
-            case null {
+            case null   {
                 // Debug.print("Motoko: No skills map found for caller " # Principal.toText(caller) # "."); // Uncomment jika ingin logging
-                return false;
+                return #err({
+                    message = "Empty skill";
+                });
             };
+            case (?val) val;
         };
 
         return switch (Map.remove(skillsById, thash, id)) { // <-- Gunakan thash di sini
             case (?_) {
                 // Debug.print("Motoko: Skill " # id # " successfully removed for caller " # Principal.toText(caller) # "."); // Uncomment jika ingin logging
-                true;
+                let natId = switch(Nat.fromText(id)) {
+                    case (null) {
+                        return #err({
+                            message = "Invalid skill id";
+                        });
+                    };
+                    case (?val) val;
+                };
+
+                return #ok({
+                    data = { 
+                        id = natId;
+                    };
+                    message = "Skill with ID " # id # " not found";
+                });
             };
             case null {
                 // Debug.print("Motoko: Skill " # id # " not found in map for caller " # Principal.toText(caller) # "."); // Uncomment jika ingin logging
-                false;
+                return #err({
+                    message = "Skill with ID " # id # " not found";
+                });
             };
         };
     };

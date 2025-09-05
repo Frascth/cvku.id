@@ -43,7 +43,7 @@ module {
   public let ROLE_ADMIN : Role = "admin";
 
   public type CreatedResponse = {
-    lid:Text;
+    lid:Nat;
     id:Nat
   };
 

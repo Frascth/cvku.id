@@ -21,7 +21,7 @@ export function createEducationHandler(authClient: AuthClient) {
 
       return response.ok.data.map(edu => ({
         ...edu,
-        id: edu.id.toString(),
+        id: Number(edu.id),
         gpa: toOptionalTs(edu.gpa)
       }));
     },

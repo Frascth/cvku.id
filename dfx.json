@@ -23,6 +23,7 @@
       },
       "wasm": "https://github.com/dfinity/llm/releases/latest/download/llm-canister-ollama.wasm"
     },
+    
     "auth_service": {
       "type": "motoko",
       "main": "src/auth_service/main.mo"

@@ -89,6 +89,27 @@ export const CoverLetterBuilder: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handler, isAuthenticated]);
 
+  // Auth & LLM actor
+  const [authClient, setAuthClient] = useState<AuthClient | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const ac = await AuthClient.create();
+      if (mounted) setAuthClient(ac);
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const llm = useMemo(
+    () =>
+      authClient
+        ? createLlmActor(llmCanisterId, {
+          agentOptions: { identity: authClient.getIdentity() },
+        })
+        : null,
+    [authClient]
+  );
+
   const generateCoverLetter = async () => {
     if (!builder.companyName || !builder.jobTitle) {
       toast({
@@ -293,6 +314,10 @@ export const CoverLetterBuilder: React.FC = () => {
                 )}
               </Button>
             </div>
+
+            {draftId != null && (
+              <div className="text-center text-xs text-gray-500 mt-2">Draft ID: {draftId.toString()}</div>
+            )}
           </TabsContent>
 
           {/* Editor */}
