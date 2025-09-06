@@ -93,6 +93,7 @@ export interface Skill {
 }
 
 export interface Certification {
+  lid?: string; // local id for optimistic update
   id: string; // text
   name: string;
   issuer: string;
@@ -216,6 +217,7 @@ export interface ResumeStore {
   atsHandler: ReturnType<typeof createAtsHandler> | null;
   scoreHandler: ReturnType<typeof createResumeScoreHandler> | null;
   initializeHandlers: (authClient: AuthClient) => void;
+  areHandlersReady: () => boolean;
 
   // Skills
   setSkills: (skills: Skill[]) => void;
@@ -501,6 +503,23 @@ const createStoreImpl: SC = (set, get) => ({
     }
   },
 
+  areHandlersReady: () => {
+    const state = get();
+    return (
+      state.resumeHandler &&
+      state.personalInfoHandler &&
+      state.workExperienceHandler &&
+      state.educationHandler &&
+      state.skillsHandler &&
+      state.certificationHandler &&
+      state.customSectionHandler &&
+      state.socialHandler &&
+      state.coverLetterHandler &&
+      state.atsHandler &&
+      state.scoreHandler
+    ) != null;
+  },
+
   /* =========================
    * Skills
    * ========================= */
@@ -633,11 +652,29 @@ const createStoreImpl: SC = (set, get) => ({
     const handler = get().certificationHandler;
     if (!handler) throw new Error("Certification handler not initialized.");
     try {
-      const newCert = await handler.clientAdd(cert);
+      const lid = crypto.randomUUID();
+
+      const tmpCert = {
+        ...cert,
+        lid: lid,
+        id: crypto.randomUUID(),
+      };
+
       set((state) => ({
         resumeData: {
           ...state.resumeData,
-          certifications: [...state.resumeData.certifications, newCert],
+          certifications: [...state.resumeData.certifications, tmpCert],
+        },
+      }));
+
+      const newCert = await handler.clientAdd(lid, cert);
+
+      set((state) => ({
+        resumeData: {
+          ...state.resumeData,
+          certifications: state.resumeData.certifications.map((c) =>
+            c.lid === lid ? { ...c, id: newCert.id } : c
+          ),
         },
       }));
     } catch (error) {
@@ -660,14 +697,15 @@ const createStoreImpl: SC = (set, get) => ({
     const handler = get().certificationHandler;
     if (!handler) throw new Error("Certification handler not initialized.");
     try {
-      const ok = await handler.clientDeleteById(id);
-      if (!ok) throw new Error("Backend reported failure to delete certification.");
       set((state) => ({
         resumeData: {
           ...state.resumeData,
           certifications: state.resumeData.certifications.filter((c) => c.id !== id),
         },
       }));
+      const ok = await handler.clientDeleteById(id);
+      if (!ok) throw new Error("Backend reported failure to delete certification.");
+
     } catch (error) {
       console.error("Failed to remove certification:", error);
       throw error;
