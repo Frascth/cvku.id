@@ -12,6 +12,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { createCoverLetterHandler } from "@/lib/coverLetterHandler";
 import { useResumeStore } from "@/store/useResumeStore";
+import {
+  createActor as createLlmActor,
+  canisterId as llmCanisterId,
+} from "../../../declarations/llm_service";
 
 const DEFAULT_BUILDER = {
   id: "",
@@ -65,6 +69,7 @@ export const CoverLetterBuilder: React.FC = () => {
 
   const { authClient, isAuthenticated } = useAuth();
   const handler = useMemo(() => (authClient ? createCoverLetterHandler(authClient) : null), [authClient]);
+  const [draftId, setDraftId] = React.useState<bigint | null>(null);
 
   // init default (biar nggak undefined) + fetch dari BE kalau sudah login
   useEffect(() => {
@@ -82,6 +87,13 @@ export const CoverLetterBuilder: React.FC = () => {
         ]);
         if (b) setCoverLetterBuilder(b as any);
         if (e) setCoverLetterEditor(e as any);
+        const rawId =
+          (b as any)?.id ?? (b as any)?.data?.id ??
+          (e as any)?.id ?? (e as any)?.data?.id ??
+          (coverLetterBuilder as any)?.id ?? (coverLetterEditor as any)?.id;
+        if (rawId != null && rawId !== "") {
+          setDraftId(typeof rawId === "bigint" ? rawId : BigInt(rawId));
+        }
       } catch (err) {
         console.error("fetch cover letter failed:", err);
       }
@@ -90,15 +102,15 @@ export const CoverLetterBuilder: React.FC = () => {
   }, [handler, isAuthenticated]);
 
   // Auth & LLM actor
-  const [authClient, setAuthClient] = useState<AuthClient | null>(null);
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const ac = await AuthClient.create();
-      if (mounted) setAuthClient(ac);
-    })();
-    return () => { mounted = false; };
-  }, []);
+  // const [authClient, setAuthClient] = useState<AuthClient | null>(null);
+  // useEffect(() => {
+  //   let mounted = true;
+  //   (async () => {
+  //     const ac = await AuthClient.create();
+  //     if (mounted) setAuthClient(ac);
+  //   })();
+  //   return () => { mounted = false; };
+  // }, []);
 
   const llm = useMemo(
     () =>
@@ -152,6 +164,19 @@ export const CoverLetterBuilder: React.FC = () => {
     }
     try {
       await handler.clientSave(builder as any, editor as any);
+      const res = await handler.clientSave(builder as any, editor as any);
+      // ⬇️ tarik id dari hasil save (coba beberapa bentuk umum) 
+      const rawId =
+        (res as any)?.ok?.data?.id ??  // Response variant { ok: { data: { id } } } 
+        (res as any)?.data?.id ??      // { data: { id } } 
+        (res as any)?.id;              // { id } 
+      if (rawId != null) {
+        const idBig = typeof rawId === "bigint" ? rawId : BigInt(rawId);
+        setDraftId(idBig);
+        // simpan juga id ke store supaya ikut terserialisasi (string aman utk persist) 
+        setCoverLetterBuilder({ ...builder, id: String(idBig) } as any);
+        setCoverLetterEditor({ ...editor, id: String(idBig) } as any);
+      }
       toast({ title: "Saved", description: "Your cover letter has been saved." });
     } catch (e: any) {
       toast({ title: "Save failed", description: e?.message || "Please try again.", variant: "destructive" });

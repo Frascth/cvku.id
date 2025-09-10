@@ -103,6 +103,33 @@ module {
     level : SkillLevel;
   };
 
+    // ===== Assessment Types =====
+
+  // Kita reuse SkillLevel supaya konsisten
+  public type AssessmentLevel = SkillLevel;
+
+  // Satu hasil assessment untuk 1 skill
+  public type Assessment = {
+    skillId : Text;        // contoh: "javascript", "react"
+    score   : Nat;         // 0..100
+    level   : AssessmentLevel;
+    dateISO : Text;        // timestamp ISO dari FE (mis. "2025-09-07T12:34:56.789Z")
+  };
+
+  // Response payloads untuk operasi CRUD-like
+  public type AssessmentSavedResponse = {
+    skillId : Text;
+  };
+
+  public type AssessmentDeletedResponse = {
+    skillId : Text;
+  };
+
+  // Untuk endpoint "has completed?"
+  public type AssessmentCompletedResponse = {
+    completed : Bool;
+  };
+
   public type Certification = {
     id : Text;
     name : Text;

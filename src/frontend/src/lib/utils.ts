@@ -10,8 +10,8 @@ export function cn(...inputs: ClassValue[]) {
  * local id is UUID and its not not purely numeric.
  */
 export function isBackendId(id: number | string): boolean {
-  const n = typeof id === "string" ? Number(id) : id;
-  return Number.isInteger(n) && n > 0;
+  const s = String(id);
+  return /^\d+$/.test(s) && Number(s) > 0; // hanya digit, > 0
 }
 
 export function isValidUrl(url: string): boolean {
@@ -23,6 +23,15 @@ export function isValidUrl(url: string): boolean {
   } catch (error) {
     return false;
   }
+}
+
+// UUID selalu mengandung tanda '-', jadi bisa dipakai deteksi sementara
+export function isTempId(id: string | number): boolean {
+  return typeof id === "string" && id.includes("-");
+}
+
+export function isPersistedId(id: string | number): boolean {
+  return !isTempId(id);
 }
 
 export function removeNonAlphaNumeric(text:string):string {

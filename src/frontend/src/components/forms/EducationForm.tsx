@@ -36,8 +36,7 @@ export const EducationForm: React.FC = () => {
 
       addEducation({
         ...edu,
-        lid: lid,
-        id: crypto.randomUUID(),
+        lid,
       });
 
       toast({
@@ -47,9 +46,9 @@ export const EducationForm: React.FC = () => {
 
       setShowAddForm(false);
 
-      const addedEducation = await educationHandler.clientAdd(lid, edu);
+      const newEdu = await educationHandler.clientAdd(lid, edu);
+      updateEducationId(lid, Number(newEdu.id));
 
-      updateEducationId(lid, addedEducation.id);
     } catch (error) {
       console.error(error);
 

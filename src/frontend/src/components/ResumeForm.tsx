@@ -1,3 +1,4 @@
+// src/frontend/src/components/ResumeForm.tsx
 import React, { useEffect } from "react";
 import { PersonalInfoForm } from "./forms/PersonalInfoForm";
 import { WorkExperienceForm } from "./forms/WorkExperienceForm";
@@ -29,6 +30,8 @@ export const ResumeForm: React.FC = () => {
   const {
     initialResumeData,
     updateResume,
+
+    // handlers
     resumeHandler,
     personalInfoHandler,
     workExperienceHandler,
@@ -38,17 +41,20 @@ export const ResumeForm: React.FC = () => {
     customSectionHandler,
     socialHandler,
     coverLetterHandler,
+
+    // assessment
+    assessmentHandler,
+    hasHydrated,
     areHandlersReady,
   } = useResumeStore();
 
   const { isLoading } = useAuth();
 
+  // Effect 1: Fetch all resume data once handlers are ready
   useEffect(() => {
     const fetchResume = async () => {
       try {
-        if (isLoading || ! areHandlersReady()) {
-          return;
-        }
+        if (isLoading || !areHandlersReady()) return;
 
         let patch: ResumeData = initialResumeData;
 
@@ -64,38 +70,39 @@ export const ResumeForm: React.FC = () => {
           coverLetterEditor,
           resumeLink,
         ]: [
-          PersonalInfo,
-          WorkExperience[],
-          Education[],
-          Skill[],
-          Certification[],
-          CustomSection[],
-          SocialLink[],
-          CoverLetterBuilder,
-          CoverLetterEditor,
-          ResumeLink
-        ] = await Promise.all([
-          personalInfoHandler.clientGet(),
-          workExperienceHandler.clientGetAll(),
-          educationHandler.clientGetAll(),
-          skillsHandler.clientGetAll(),
-          certificationHandler.clientGetAll(),
-          customSectionHandler.clientGetAll(),
-          socialHandler.clientGetAll(),
-          coverLetterHandler.clientGetBuilder(),
-          coverLetterHandler.clientGetEditor(),
-          resumeHandler.clientGetResumeLink(),
-        ]);
+            PersonalInfo,
+            WorkExperience[],
+            Education[],
+            Skill[],
+            Certification[],
+            CustomSection[],
+            SocialLink[],
+            CoverLetterBuilder,
+            CoverLetterEditor,
+            ResumeLink
+          ] = await Promise.all([
+            personalInfoHandler.clientGet(),
+            workExperienceHandler.clientGetAll(),
+            educationHandler.clientGetAll(),
+            skillsHandler.clientGetAll(),
+            certificationHandler.clientGetAll(),
+            customSectionHandler.clientGetAll(),
+            socialHandler.clientGetAll(),
+            coverLetterHandler.clientGetBuilder(),
+            coverLetterHandler.clientGetEditor(),
+            resumeHandler.clientGetResumeLink(),
+          ]);
 
         patch = {
-          personalInfo: personalInfo ?? {
-            fullName: "",
-            email: "",
-            phone: "",
-            location: "",
-            website: "",
-            bio: "",
-          },
+          personalInfo:
+            personalInfo ?? {
+              fullName: "",
+              email: "",
+              phone: "",
+              location: "",
+              website: "",
+              bio: "",
+            },
           workExperience: workExps ?? [],
           education: edus ?? [],
           skills: skills ?? [],
@@ -123,13 +130,10 @@ export const ResumeForm: React.FC = () => {
           socialLinks: socialLinks ?? [],
           customSections: customSections ?? [],
           resumeLink: {
-            ...{
-              lid: "",
-              id: "",
-              path: "",
-              isPublic: true,
-            },
-            ...(resumeLink ?? {}),
+            lid: resumeLink?.lid ?? "",
+            id: typeof resumeLink?.id === "number" ? resumeLink.id : 0, // ⬅️ number
+            path: resumeLink?.path ?? "",
+            isPublic: typeof resumeLink?.isPublic === "boolean" ? resumeLink.isPublic : true,
           },
         };
 
@@ -140,7 +144,25 @@ export const ResumeForm: React.FC = () => {
     };
 
     fetchResume();
-  }, [isLoading, areHandlersReady]);
+  }, [isLoading, areHandlersReady, initialResumeData, updateResume, personalInfoHandler, workExperienceHandler, educationHandler, skillsHandler, certificationHandler, customSectionHandler, socialHandler, coverLetterHandler, resumeHandler]);
+
+  // Effect 2: Hydrate assessment results so badges persist after reload/login
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (!areHandlersReady()) return;
+
+    (async () => {
+      try {
+        await assessmentHandler?.hydrateForUser();
+        // If your templates read badges from `assessment` map (recommended),
+        // no further action needed. If you still derive badges into `skills[]`,
+        // you could re-fetch skills here and merge with assessment.
+        // await useResumeStore.getState().fetchSkills?.();
+      } catch (e) {
+        console.error("hydrate assessments failed", e);
+      }
+    })();
+  }, [hasHydrated, areHandlersReady, assessmentHandler]);
 
   return (
     <div className="space-y-6">

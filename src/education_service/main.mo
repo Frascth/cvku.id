@@ -68,9 +68,14 @@ persistent actor EducationService {
 
     Map.set(eduByPrincipal, Map.phash, caller, eduById);
 
+    let lidNat = switch (Nat.fromText(request.lid)) {
+      case (?n) n;
+      case null { return #err({ message = "Invalid lid: " # request.lid }) };
+    };
+
     return #ok({
       data = {
-        lid = request.lid;
+        lid = lidNat;
         id = newEdu.id;
       };
       message = "Success create education";

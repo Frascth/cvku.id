@@ -4,7 +4,7 @@ import { devtools, persist, createJSONStorage } from "zustand/middleware";
 import { AuthClient } from "@dfinity/auth-client";
 import { createCertificationHandler } from "../lib/certificationHandler";
 import { createSkillsHandler } from "../lib/skillsHandler";
-import { isValidUrl } from "@/lib/utils";
+import { isValidUrl, isBackendId, isPersistedId, isTempId } from "@/lib/utils";
 import { createPersonalInfoHandler } from "@/lib/personalInfoHandler";
 import { createWorkExperienceHandler } from "@/lib/workExperienceHandler";
 import { createEducationHandler } from "@/lib/educationHandler";
@@ -14,6 +14,8 @@ import { createCoverLetterHandler } from "@/lib/coverLetterHandler";
 import { createAtsHandler } from "@/lib/atsHandler";
 import { createResumeScoreHandler } from "@/lib/resumeScoreHandler";
 import { createResumeHandler } from "@/lib/resumeHandler";
+import { createAssessmentHandler } from "@/lib/assessment/assessmentHandler";
+
 
 /* =========================
  * Types
@@ -22,23 +24,24 @@ export type SkillLevel = "Beginner" | "Intermediate" | "Advanced" | "Expert";
 
 export type AssessmentLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 
+const slugify = (s: string) => s.toLowerCase().trim().replace(/\s+/g, "-");
+
+const asId = (t: string) => t.toLowerCase().trim().replace(/\s+/g, "-");
+
 export interface AssessmentResult {
   skillId: string;      // 'javascript', 'react', dst (ID internal assessment)
+  skillKey?: string;   // optional, kunci alternatif (misal: skillId di FE) 
   skillName: string;    // 'JavaScript', 'React', dst
   score: number;        // 0..100
   correct: number;
   total: number;
   level: AssessmentLevel;
   dateISO: string;      // ISO date
+  testLevel?: AssessmentLevel; // level test yang diambil
 }
 
-// Badge yang akan ditampilkan di Skills (keyed by skill name)
-export interface SkillBadge {
-  title: string;        // contoh: "JavaScript Assessment (Advanced)"
-  level: AssessmentLevel;
-  score: number;
-  dateISO: string;
-}
+const assessmentKey = (skillId: string, testLevel?: AssessmentLevel) =>
+  testLevel? `${skillId}::${testLevel}` : `${skillId}`;
 
 // FE-only types (untuk Resume Score)
 export type ScorePriority = "High" | "Medium" | "Low";
@@ -77,7 +80,7 @@ export interface WorkExperience {
 
 export interface Education {
   lid?: string; // for optimistic update
-  id: string;
+  id: number;
   degree: string;
   institution: string;
   graduationDate: string;
@@ -90,6 +93,9 @@ export interface Skill {
   id: string; // text
   name: string;
   level: SkillLevel;
+  lastAssessmentScore?: number;   // ⬅️ skor terakhir (0–100)
+  lastAssessmentLevel?: AssessmentLevel; // ⬅️ level terakhir (opsional)
+  lastAssessmentAt?: string;      // ⬅️ timestamp ISO (opsional)
 }
 
 export interface Certification {
@@ -193,16 +199,13 @@ export interface ResumeStore {
   clearResumeScore: () => void;
 
   // --- Assessment (hasil + badge di Skills) ---
-  assessment: Record<string, AssessmentResult>;           // key = skillId assessment
+  assessment: Record<string, AssessmentResult>;
   setAssessmentResult: (r: AssessmentResult) => void;
-  clearAssessmentForSkill: (skillId: string) => void;
+  clearAssessmentForSkill: (skillId: string, testLevel?: AssessmentLevel) => void;
   clearAllAssessments: () => void;
+  hasCompletedAssessment: (skillId: string, testLevel?: AssessmentLevel) => boolean;
 
-  // badge per skillName (lowercased) → mudah ditampilkan di Skills
-  skillBadges: Record<string, SkillBadge>;                // key = skillName.toLowerCase()
-  awardBadgeFromAssessment: (skillId: string) => void;    // pakai hasil terakhir utk skillId tsb
-  removeBadgeForSkillName: (skillName: string) => void;
-  getBadgeForSkillName: (skillName: string) => SkillBadge | undefined;
+
 
   // handlers
   resumeHandler: ReturnType<typeof createResumeHandler> | null;
@@ -216,6 +219,7 @@ export interface ResumeStore {
   coverLetterHandler: ReturnType<typeof createCoverLetterHandler> | null;
   atsHandler: ReturnType<typeof createAtsHandler> | null;
   scoreHandler: ReturnType<typeof createResumeScoreHandler> | null;
+  assessmentHandler: ReturnType<typeof createAssessmentHandler> | null;
   initializeHandlers: (authClient: AuthClient) => void;
   areHandlersReady: () => boolean;
 
@@ -243,13 +247,13 @@ export interface ResumeStore {
   setWorkExperience: (experiences: WorkExperience[]) => void;
   addWorkExperience: (experience: WorkExperience) => void;
   updateWorkExperienceId: (lid: string, id: string) => void;
-  updateWorkExperience: (id: string, experience: Partial<WorkExperience>) => void;
-  removeWorkExperience: (id: string) => void;
+  updateWorkExperience: (id: number, experience: Partial<WorkExperience>) => void;
+  removeWorkExperience: (id: number) => void;
   setEducation: (experiences: Education[]) => void;
-  addEducation: (education: Education) => void;
-  updateEducation: (id: string, education: Partial<Education>) => void;
-  updateEducationId: (lid: string, id: string) => void;
-  removeEducation: (id: string) => void;
+  addEducation: (education: Omit<Education, "id">) => void;
+  updateEducation: (id: number, education: Partial<Education>) => void;
+  updateEducationId: (lid: string, id: number) => void;
+  removeEducation: (id: number) => void;
   addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => void;
   setSocialLink: (params: { socialLinks: SocialLink[] }) => void;
   updateSocialLink: (id: number, socialLink: Partial<SocialLink>) => void;
@@ -350,6 +354,9 @@ const mergeById = <T extends { id: string }>(local: T[], server: T[]) => {
   return Array.from(map.values());
 };
 
+const nextId = (arr: { id: number }[]) =>
+  (arr.reduce((m, x) => Math.max(m, x.id), 0) || 0) + 1;
+
 /* =========================
  * Creator (tanpa middleware tags)
  * ========================= */
@@ -371,6 +378,7 @@ const createStoreImpl: SC = (set, get) => ({
   certificationHandler: null,
   skillsHandler: null,
   atsHandler: null,
+  assessmentHandler: null,
   scoreHandler: null,
   hasHydrated: false,
   currentPrincipal: null,
@@ -415,47 +423,72 @@ const createStoreImpl: SC = (set, get) => ({
     })),
 
   // ===== Assessment =====
-  // ===== Assessment results =====
   assessment: {},
-  setAssessmentResult: (r) =>
-    set((s) => ({
-      ...s,
-      assessment: { ...s.assessment, [r.skillId]: r },
-    })),
-  clearAssessmentForSkill: (skillId) =>
-    set((s) => {
-      const copy = { ...s.assessment };
-      delete copy[skillId];
-      return { ...s, assessment: copy };
-    }),
-  clearAllAssessments: () => set((s) => ({ ...s, assessment: {} })),
 
-  // ===== Skill badges (ditampilkan di Skills) =====
-  skillBadges: {},
-  awardBadgeFromAssessment: (skillId) =>
+  // setAssessmentResult: simpan di key baru; kalau testLevel belum ada, tetap aman
+    setAssessmentResult: (r) =>
     set((s) => {
-      const r = s.assessment[skillId];
-      if (!r) return s; // gak ada hasil -> no-op
-      const key = r.skillName.toLowerCase();
-      const badge: SkillBadge = {
-        title: `${r.skillName} Assessment (${r.level})`,
-        level: r.level,
-        score: r.score,
-        dateISO: r.dateISO,
+      // Pakai skillKey jika ada; fallback ke skillId
+      const k = (r as any).skillKey ?? r.skillId;
+      const newAssessment = {
+        ...s.assessment,
+        [assessmentKey(k, r.testLevel)]: r,
       };
+
+      // Cari skill target:
+      // 1) by exact id
+      // 2) kalau gagal, by slug(name)
+      const targetIdx = s.resumeData.skills.findIndex((sk) =>
+        sk.id === r.skillId ||
+        slugify(sk.name) === slugify((r as any).skillKey ?? r.skillName ?? "")
+      );
+
+      const skills = [...s.resumeData.skills];
+      if (targetIdx !== -1) {
+        const sk = skills[targetIdx];
+        skills[targetIdx] = {
+          ...sk,
+          lastAssessmentScore: r.score,
+          lastAssessmentLevel: r.level,
+          lastAssessmentAt: r.dateISO,
+        };
+      }
+
       return {
         ...s,
-        skillBadges: { ...s.skillBadges, [key]: badge },
+        assessment: newAssessment,
+        resumeData: { ...s.resumeData, skills },
       };
     }),
-  removeBadgeForSkillName: (skillName) =>
+
+  // clearAssessmentForSkill: bisa hapus satu level, atau semua level utk skill tsb
+    clearAssessmentForSkill: (skillId, testLevel) =>
     set((s) => {
-      const key = skillName.toLowerCase();
-      const copy = { ...s.skillBadges };
-      delete copy[key];
-      return { ...s, skillBadges: copy };
+      const next = { ...s.assessment };
+      const k = slugify(skillId); // konsisten dengan key saat simpan
+
+      if (testLevel) {
+        delete next[assessmentKey(k, testLevel)];
+      } else {
+        for (const key of Object.keys(next)) {
+          if (key === k || key.startsWith(`${k}::`)) delete next[key];
+        }
+      }
+      return { ...s, assessment: next };
     }),
-  getBadgeForSkillName: (skillName) => get().skillBadges[skillName.toLowerCase()],
+
+  clearAllAssessments: () => set((s) => ({ ...s, assessment: {} })),
+
+  // hasCompletedAssessment: cek kunci baru & kunci lama (kompatibel)
+  hasCompletedAssessment: (skillId, testLevel) => {
+    const a = get().assessment;
+    const k = slugify(skillId);
+
+    if (testLevel) return !!a[assessmentKey(k, testLevel)];
+    // kompatibel: per-skill (lama) atau per-skill::level (baru)
+    return !!a[k] || Object.keys(a).some((key) => key.startsWith(`${k}::`));
+  },
+
 
   // ===== handlers init =====
   initializeHandlers: (authClient) => {
@@ -492,6 +525,7 @@ const createStoreImpl: SC = (set, get) => ({
         coverLetterHandler: createCoverLetterHandler(authClient),
         atsHandler: createAtsHandler(authClient),
         scoreHandler: createResumeScoreHandler(authClient),
+        assessmentHandler: createAssessmentHandler(authClient)
       });
 
       // really only init handlers, fetch moved into src/frontend/src/components/ResumeForm.tsx
@@ -572,16 +606,20 @@ const createStoreImpl: SC = (set, get) => ({
 
       const newSkill = await handler.clientAdd(lid, skill);
 
-      set(state => {
-        return {
-          resumeData: {
-            ...state.resumeData,
-            skills: state.resumeData.skills.map((skill) =>
-              skill.lid === lid ? { ...skill, id: newSkill.id } : skill
-            ),
-          },
-        };
-      });
+      set((state) => ({
+        resumeData: {
+          ...state.resumeData,
+          skills: state.resumeData.skills.map((s) =>
+            s.lid === lid
+              ? {
+                  ...s,
+                  id: newSkill.id,     // id dari BE
+                  lid: newSkill.lid,   // lid numeric dari BE (penting!)
+                }
+              : s
+          ),
+        },
+      }));
 
     } catch (err) {
       console.error("Failed to add skill:", err);
@@ -599,23 +637,32 @@ const createStoreImpl: SC = (set, get) => ({
       },
     })),
 
+  // di store (useResumeStore)
   removeSkill: async (id) => {
     const handler = get().skillsHandler;
     if (!handler) throw new Error("Skills handler not initialized.");
+
+    // 1) Optimistic remove di FE, NORMALISASI ke string
+    set((state) => ({
+      resumeData: {
+        ...state.resumeData,
+        skills: state.resumeData.skills.filter(
+          (s) => String(s.id) !== String(id)
+        ),
+      },
+    }));
+
     try {
-      set((state) => ({
-        resumeData: {
-          ...state.resumeData,
-          skills: state.resumeData.skills.filter((s) => s.id !== id),
-        },
-      }));
+      // 2) Kalau masih temp/UUID → jangan panggil BE
+      if (isTempId(id)) return;
 
-      const ok = await handler.clientDeleteById(id);
-      
-      if (!ok) throw new Error("Backend reported failure to delete skill.");
-
+      // BE kamu menerima id: string (DID: Text)
+      const resId = await handler.clientDeleteById(String(id));
+      // optional: bisa cek resId === String(id)
     } catch (err) {
       console.error("Failed to remove skill:", err);
+      // (opsional) rollback kalau mau:
+      // await get().fetchSkills();
       throw err;
     }
   },
@@ -758,33 +805,35 @@ const createStoreImpl: SC = (set, get) => ({
       },
     })),
 
-  updateWorkExperienceId: (lid, id) =>
-    set((state) => ({
+  updateWorkExperienceId: (oldId: number | string, newId: number | string) => {
+    const _old = Number(oldId); const _new = Number(newId);
+    return set((state) => ({
       resumeData: {
         ...state.resumeData,
         workExperience: state.resumeData.workExperience.map((exp) =>
-          exp.lid === lid ? { ...exp, id: id } : exp
+          exp.id === _old ? { ...exp, id: _new } as WorkExperience : exp
         ),
       },
-    })),
+    }));
+  },
 
-  updateWorkExperience: (id, experience) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        workExperience: state.resumeData.workExperience.map((exp) =>
-          exp.id === id ? { ...exp, ...experience } : exp
-        ),
-      },
-    })),
+  updateWorkExperience: (id: number, experience: Partial<WorkExperience>) =>
+  set((state) => ({
+    resumeData: {
+      ...state.resumeData,
+      workExperience: state.resumeData.workExperience.map((exp) =>
+        exp.id === id ? { ...exp, ...experience } : exp
+      ),
+    },
+  })),
 
-  removeWorkExperience: (id) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        workExperience: state.resumeData.workExperience.filter((exp) => exp.id !== id),
-      },
-    })),
+  removeWorkExperience: (id: number) =>
+  set((state) => ({
+    resumeData: {
+      ...state.resumeData,
+      workExperience: state.resumeData.workExperience.filter((exp) => exp.id !== id),
+    },
+  })),
 
   /* =========================
    * Education
@@ -792,13 +841,17 @@ const createStoreImpl: SC = (set, get) => ({
   setEducation: (educations) =>
     set((state) => ({ resumeData: { ...state.resumeData, education: educations } })),
 
-  addEducation: (education) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        education: [...state.resumeData.education, education],
-      },
-    })),
+  addEducation: (education: Omit<Education, "id">) => 
+  set((state) => ({
+    resumeData: {
+      ...state.resumeData,
+      education: [
+        ...state.resumeData.education,
+        { ...education, id: nextId(state.resumeData.education) } as Education,
+      ],
+    },
+  })),
+
 
   updateEducation: (id, patch) =>
     set((state) => ({
@@ -831,24 +884,16 @@ const createStoreImpl: SC = (set, get) => ({
   /* =========================
    * Social Links
    * ========================= */
-  addSocialLink: (socialLink) =>
-    set((state) => {
-
-      if (!isValidUrl(socialLink.url)) {
-        throw new Error(`Please provide a valid url`);
-      }
-
-      return {
-        resumeData: {
-          ...state.resumeData,
-          socialLinks: [
-            ...state.resumeData.socialLinks,
-            { ...socialLink, id: crypto.randomUUID() },
-          ],
-        },
-      }
-
-    }),
+  addSocialLink: (socialLink: Omit<SocialLink, "id">) =>
+  set((state) => ({
+    resumeData: {
+      ...state.resumeData,
+      socialLinks: [
+        ...state.resumeData.socialLinks,
+        { ...socialLink, id: nextId(state.resumeData.socialLinks) } as SocialLink,
+      ],
+    },
+  })),
 
   setSocialLink: ({ socialLinks }) =>
     set((state) => ({ resumeData: { ...state.resumeData, socialLinks } })),
@@ -887,17 +932,16 @@ const createStoreImpl: SC = (set, get) => ({
   setCustomSection: ({ sections }) =>
     set((state) => ({ resumeData: { ...state.resumeData, customSections: sections } })),
 
-  addCustomSection: (section) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        customSections: [
-          ...state.resumeData.customSections,
-          { ...section, id: crypto.randomUUID() },
-        ],
-      },
-    })),
-
+  addCustomSection: (section: Omit<CustomSection, "id">) =>
+  set((state) => ({
+    resumeData: {
+      ...state.resumeData,
+      customSections: [
+        ...state.resumeData.customSections,
+        { ...section, id: nextId(state.resumeData.customSections) } as CustomSection,
+      ],
+    },
+  })),
 
   updateCustomSectionId: (lid, newId) =>
     set((state) => ({
@@ -1067,7 +1111,6 @@ type PersistedSlice = Pick<
   | "resumeScoreCategories"
   | "resumeScoreImprovements"
   | "assessment"         // ⬅️ persist
-  | "skillBadges"
   | "coverLetterBuilder"    // <— tambahkan
   | "coverLetterEditor"     // <— tambahkan
 >;
@@ -1081,7 +1124,7 @@ export const useResumeStore = create<ResumeStore>()(
       name: "resume-store",
       storage: createJSONStorage(() => localStorage),
       partialize: (s): PersistedSlice => ({
-        resumeData: s.resumeData,
+        resumeData: s.resumeData,        // ⬅️ full
         selectedTemplate: s.selectedTemplate,
         isPrivate: s.isPrivate,
         currentPrincipal: s.currentPrincipal,
@@ -1090,11 +1133,11 @@ export const useResumeStore = create<ResumeStore>()(
         resumeScoreOverall: s.resumeScoreOverall,
         resumeScoreCategories: s.resumeScoreCategories,
         resumeScoreImprovements: s.resumeScoreImprovements,
-        assessment: s.assessment,       // ⬅️
-        skillBadges: s.skillBadges,
+        assessment: s.assessment,
         coverLetterBuilder: s.coverLetterBuilder,
         coverLetterEditor: s.coverLetterEditor,
       }),
+
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
           state.hasHydrated = true;
@@ -1109,6 +1152,10 @@ export const useResumeStore = create<ResumeStore>()(
 
           if (!state.coverLetterBuilder) state.coverLetterBuilder = { ...defaultCoverLetterBuilder };
           if (!state.coverLetterEditor) state.coverLetterEditor = { ...defaultCoverLetterEditor };
+
+          if (!state.assessment) state.assessment = {};
+          if (!state.resumeData) state.resumeData = { skills: [] } as any;
+          if (!state.resumeData.skills) state.resumeData.skills = [];
 
           // ⛔️ Jangan fetch di sini (handlers belum di-init).
           // Fetch dilakukan di initializeHandlers setelah handler tersedia.

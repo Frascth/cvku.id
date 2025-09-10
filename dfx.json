@@ -72,6 +72,14 @@
       "type": "motoko",
       "main": "src/resume_score_service/main.mo"
     },
+    "assessment_service": {
+      "type": "motoko",
+      "main": "src/assessment_service/main.mo"
+    },
+    "coverleter_service": {
+      "type": "motoko",
+      "main": "src/coverleter_service/main.mo"
+    },
     "frontend": {
       "type": "assets",
       "source": [
@@ -90,7 +98,8 @@
         "cover_letter_service",
         "llm_service",
         "resume_service",
-        "resume_score_service"
+        "resume_score_service",
+        "assessment_service"
       ]
     }
   },
