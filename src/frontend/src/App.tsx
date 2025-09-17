@@ -16,6 +16,7 @@ import Index from "./pages/Index";
 import Landing from "./pages/Landing";
 import LivePreview from "./pages/LivePreview";
 import { AuthProvider } from "./providers/AuthProvider";
+import Spark from "./pages/Spark";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/assessment" element={<Assessment />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/builder" element={<Builder />} />
+            <Route path="/spark" element={<Spark />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/signup" element={<SignUp />} />
