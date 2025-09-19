@@ -11,6 +11,7 @@ import {
   Sparkle,
   Sparkles,
   WandSparkles,
+  Link2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -80,6 +81,15 @@ export const Header: React.FC = () => {
             >
               <Sparkles className="w-4 h-4" />
               Spark
+            </Link>
+              <Link 
+              to="/create-link" 
+              className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-1 ${
+                isActive('/create-link') ? 'text-primary' : 'text-muted-foreground'
+              }`}
+            >
+              <Link2 className="w-4 h-4" />
+              Public Link
             </Link>
             <Link
               to="/settings"

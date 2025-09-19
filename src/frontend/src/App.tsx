@@ -17,6 +17,9 @@ import Landing from "./pages/Landing";
 import LivePreview from "./pages/LivePreview";
 import { AuthProvider } from "./providers/AuthProvider";
 import Spark from "./pages/Spark";
+import Community from "./pages/Community";
+import JobConnector from "./pages/JobConnector";
+import CreatePublicLink from "./pages/CreatePublicLink";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +39,9 @@ const App = () => (
             <Route path="/templates" element={<Templates />} />
             <Route path="/builder" element={<Builder />} />
             <Route path="/spark" element={<Spark />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/jobs" element={<JobConnector />} />
+            <Route path="/create-link" element={<CreatePublicLink />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/signup" element={<SignUp />} />
