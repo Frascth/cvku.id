@@ -29,7 +29,7 @@ This project addresses common challenges in today's professional world, such as 
 <img width="1345" height="623" alt="Screenshot From 2025-07-25 17-18-26" src="https://github.com/user-attachments/assets/34367ae8-a2dc-438b-ba8d-e30212764b07" />
 
 **Skill Assessment**
-<img width="1345" height="623" alt="image" src="https://github.com/user-attachments/assets/d235215a-4fae-46a5-b2ec-9ca59c547455" />
+<img width="1895" height="874" alt="Screenshot 2025-09-20 224554" src="https://github.com/user-attachments/assets/3c960242-38fd-4d89-adaa-3bcbf3570673" />
 
 **Spark**
 <img width="1891" height="872" alt="image" src="https://github.com/user-attachments/assets/f299fa7d-177d-4022-8ffa-93939b945ef4" />
