@@ -31,7 +31,11 @@ This project addresses common challenges in today's professional world, such as 
 **Skill Assessment**
 <img width="1345" height="623" alt="image" src="https://github.com/user-attachments/assets/d235215a-4fae-46a5-b2ec-9ca59c547455" />
 
-**Our Powerfull Features: Skill Assessment, Spark, and Community are Underway...**
+**Spark**
+<img width="1891" height="872" alt="image" src="https://github.com/user-attachments/assets/f299fa7d-177d-4022-8ffa-93939b945ef4" />
+
+
+**Our Powerfull Features: A Community are Underway...**
 
 # Features
 1. **AI-Powered Resume Builder**: Leverage advanced artificial intelligence to effortlessly generate tailored resume content, transforming your professional experience into compelling narratives that stand out.
