@@ -16,33 +16,41 @@ import Index from "./pages/Index";
 import Landing from "./pages/Landing";
 import LivePreview from "./pages/LivePreview";
 import { AuthProvider } from "./providers/AuthProvider";
+import Spark from "./pages/Spark";
+import Community from "./pages/Community";
+import JobConnector from "./pages/JobConnector";
+import CreatePublicLink from "./pages/CreatePublicLink";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-           <Route path="/landing" element={<Landing />} />
-          <Route path="/live-preview" element={<LivePreview />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/assessment" element={<Assessment />} />
-          <Route path="/templates" element={<Templates />} />
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/landing" element={<Landing />} />
+            <Route path="/live-preview" element={<LivePreview />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/assessment" element={<Assessment />} />
+            <Route path="/templates" element={<Templates />} />
             <Route path="/builder" element={<Builder />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route path="/admin" element={<Admin />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+            <Route path="/spark" element={<Spark />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/jobs" element={<JobConnector />} />
+            <Route path="/create-link" element={<CreatePublicLink />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/signin" element={<SignIn />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/admin" element={<Admin />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

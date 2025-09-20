@@ -3,6 +3,7 @@ import React from 'react';
 import { ResumeData } from '../../store/useResumeStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { Linkedin, Github, Twitter, Globe, Instagram, Facebook } from 'lucide-react';
+import { useResumeStore } from "@/store/useResumeStore";
 
 interface ProfessionalTemplateProps {
   data: ResumeData;
@@ -36,10 +37,40 @@ export const ProfessionalTemplate: React.FC<ProfessionalTemplateProps> = ({ data
     backgroundColor: currentTheme.colors.background
   };
 
+  const assessment = useResumeStore(s => s.assessment);
+
+  const slugify = (s: string) => s.toLowerCase().trim().replace(/\s+/g, "-");
+
+  function latestAssessmentForSkill(name: string) {
+    const key = slugify(name);                 // contoh: "JavaScript" -> "javascript"
+    const exact = assessment[key];             // kunci lama: "javascript"
+    if (exact) return exact as any;
+
+    // kunci baru: "javascript::Intermediate" dst — ambil yang terbaru
+    const pref = Object.entries(assessment)
+      .filter(([k]) => k.startsWith(`${key}::`))
+      .map(([, v]) => v as any)
+      .sort((a, b) => new Date(b.dateISO).getTime() - new Date(a.dateISO).getTime());
+    return pref[0] ?? null;
+  }
+
+  // fallback cari by id, kalau id FE beda dengan skillId di assessment, coba fallback by name
+  const getAssess = (sk: { id: string; name: string }) =>
+    assessment[sk.id] || assessment[sk.name.toLowerCase()];
+
+  // urutan level yang mau ditampilkan
+  const labelFromScore = (n: number) =>
+    n >= 90 ? "Excellent"
+      : n >= 75 ? "Good"
+        : n >= 55 ? "Fair"
+          : n >= 35 ? "Poor"
+            : "Very Poor";
+
+
   return (
     <div className="max-w-2xl mx-auto bg-white text-gray-900 grid grid-cols-3 gap-0 min-h-[800px]" style={themeStyles}>
       {/* Sidebar */}
-      <div 
+      <div
         className="col-span-1 text-white p-6"
         style={{ backgroundColor: currentTheme.colors.secondary }}
       >
@@ -83,26 +114,60 @@ export const ProfessionalTemplate: React.FC<ProfessionalTemplateProps> = ({ data
               <h3 className="text-sm font-bold uppercase tracking-wide mb-3 opacity-80">
                 Skills
               </h3>
+
               <div className="space-y-3">
-                {skills.map((skill) => (
-                  <div key={skill.id}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium">{skill.name}</span>
+                {skills.map((skill) => {
+                  const slugify = (s: string) => s.toLowerCase().trim().replace(/\s+/g, "-");
+                  const assessment = useResumeStore(s => s.assessment);
+                  const key = slugify(skill.name);
+
+                  const exact = assessment[key] as any;
+                  const prefixed = Object.entries(assessment)
+                    .filter(([k]) => k.startsWith(`${key}::`))
+                    .map(([, v]) => v as any)
+                    .sort((a, b) => new Date(b.dateISO).getTime() - new Date(a.dateISO).getTime());
+                  const latest = exact ?? prefixed[0] ?? null;
+
+                  const score =
+                    Number.isFinite(skill.lastAssessmentScore)
+                      ? Number(skill.lastAssessmentScore)
+                      : (Number.isFinite(latest?.score) ? Number(latest.score) : null);
+
+                  const level = skill.lastAssessmentLevel ?? latest?.level ?? null;
+                  const hasScore = Number.isFinite(score as number);
+                  const progress = hasScore ? (score as number) : 0; // bar tetap ada; 0% jika belum
+
+                  return (
+                    <div key={skill.id}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-medium">{skill.name}</span>
+                        {hasScore && <span className="text-xs opacity-70">{level}</span>}
+                      </div>
+
+                      {/* progress bar mengikuti desainmu */}
+                      <div className="w-full bg-gray-700 rounded-full h-1.5">
+                        <div
+                          className="h-1.5 rounded-full"
+                          style={{ backgroundColor: currentTheme.colors.accent, width: `${progress}%` }}
+                        />
+                      </div>
+
+                      {/* teks hasil assessment di bawah bar */}
+                      {hasScore ? (
+                        <div className="mt-0.5 text-xs text-gray-500">
+                          Result Assessment:{" "}
+                          <span className="font-medium" style={{ color: currentTheme.colors.text }}>
+                            {score}% ({labelFromScore(score)})
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="mt-0.5 text-xs text-gray-500">
+                          <span className="ml-2 text-xs text-gray-400">(Skor belum tersedia)</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="w-full bg-gray-700 rounded-full h-1.5">
-                      <div 
-                        className="h-1.5 rounded-full"
-                        style={{ 
-                          backgroundColor: currentTheme.colors.accent,
-                          width: skill.level === 'Expert' ? '100%' : 
-                                 skill.level === 'Advanced' ? '80%' : 
-                                 skill.level === 'Intermediate' ? '60%' : '40%' 
-                        }}
-                      ></div>
-                    </div>
-                    <div className="text-xs opacity-70 mt-1">{skill.level}</div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -144,11 +209,11 @@ export const ProfessionalTemplate: React.FC<ProfessionalTemplateProps> = ({ data
         {/* Work Experience */}
         {workExperience.length > 0 && (
           <div className="mb-8">
-            <h2 
+            <h2
               className="text-lg font-bold mb-4 uppercase tracking-wide border-b pb-2"
-              style={{ 
+              style={{
                 color: currentTheme.colors.primary,
-                borderColor: currentTheme.colors.accent 
+                borderColor: currentTheme.colors.accent
               }}
             >
               Professional Experience
@@ -181,11 +246,11 @@ export const ProfessionalTemplate: React.FC<ProfessionalTemplateProps> = ({ data
         {/* Education */}
         {education.length > 0 && (
           <div>
-            <h2 
+            <h2
               className="text-lg font-bold mb-4 uppercase tracking-wide border-b pb-2"
-              style={{ 
+              style={{
                 color: currentTheme.colors.primary,
-                borderColor: currentTheme.colors.accent 
+                borderColor: currentTheme.colors.accent
               }}
             >
               Education

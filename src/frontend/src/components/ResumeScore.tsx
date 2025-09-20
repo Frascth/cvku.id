@@ -52,26 +52,10 @@ export const ResumeScore: React.FC = () => {
   const improvements = useResumeStore((s) => s.resumeScoreImprovements);
   const setResumeScore = useResumeStore((s) => s.setResumeScore);
 
+  const { scoreHandler : scorer } = useResumeStore();
+
   // Hanya status UI lokal
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  // Auth & handler
-  const [authClient, setAuthClient] = useState<AuthClient | null>(null);
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const ac = await AuthClient.create();
-      if (mounted) setAuthClient(ac);
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const scorer = useMemo(
-    () => (authClient ? createResumeScoreHandler(authClient) : null),
-    [authClient]
-  );
 
   const handleAnalyze = async () => {
     if (!scorer) {

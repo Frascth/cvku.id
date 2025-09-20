@@ -58,6 +58,7 @@ const toBResume = (r: ResumeData): BResume => ({
     institution: e.institution,
     graduationDate: e.graduationDate,
     gpa: toMoOpt(e.gpa),
+    description: e.description
   })),
   skills: r.skills.map(s => ({
     id: s.id,               // FE: string -> backend: text (OK)

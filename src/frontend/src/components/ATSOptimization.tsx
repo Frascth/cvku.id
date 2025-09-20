@@ -19,23 +19,7 @@ export const ATSOptimization: React.FC = () => {
 
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  // AuthClient untuk handler ATS
-  const [authClient, setAuthClient] = useState<AuthClient | null>(null);
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const ac = await AuthClient.create();
-      if (mounted) setAuthClient(ac);
-    })();
-    return () => { mounted = false; };
-  }, []);
-
-  // Build handler saat authClient siap
-  const ats = useMemo(
-    () => (authClient ? createAtsHandler(authClient) : null),
-    [authClient]
-  );
+  const { atsHandler : ats } = useResumeStore();
 
   const handleAnalyze = async () => {
     if (!ats) {

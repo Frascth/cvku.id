@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { ResumeData } from '../../store/useResumeStore';
+import { useResumeStore } from "@/store/useResumeStore";
 import { useThemeStore } from '../../store/useThemeStore';
 
 interface ModernTemplateProps {
@@ -34,13 +35,42 @@ export const ModernTemplate: React.FC<ModernTemplateProps> = ({ data }) => {
     backgroundColor: currentTheme.colors.background
   };
 
+  const assessment = useResumeStore(s => s.assessment);
+
+  const slugify = (s: string) => s.toLowerCase().trim().replace(/\s+/g, "-");
+
+  function latestAssessmentForSkill(name: string) {
+    const key = slugify(name);                 // contoh: "JavaScript" -> "javascript"
+    const exact = assessment[key];             // kunci lama: "javascript"
+    if (exact) return exact as any;
+
+    // kunci baru: "javascript::Intermediate" dst — ambil yang terbaru
+    const pref = Object.entries(assessment)
+      .filter(([k]) => k.startsWith(`${key}::`))
+      .map(([, v]) => v as any)
+      .sort((a, b) => new Date(b.dateISO).getTime() - new Date(a.dateISO).getTime());
+    return pref[0] ?? null;
+  }
+
+  // fallback cari by id, kalau id FE beda dengan skillId di assessment, coba fallback by name
+  const getAssess = (sk: { id: string; name: string }) =>
+    assessment[sk.id] || assessment[sk.name.toLowerCase()];
+
+  // urutan level yang mau ditampilkan
+  const labelFromScore = (n: number) =>
+    n >= 90 ? "Excellent"
+      : n >= 75 ? "Good"
+        : n >= 55 ? "Fair"
+          : n >= 35 ? "Poor"
+            : "Very Poor";
+
   return (
     <div className="max-w-2xl mx-auto bg-white text-gray-900" style={themeStyles}>
       {/* Header */}
-      <div 
+      <div
         className="text-white p-8"
-        style={{ 
-          background: `linear-gradient(135deg, ${currentTheme.colors.primary} 0%, ${currentTheme.colors.secondary} 100%)` 
+        style={{
+          background: `linear-gradient(135deg, ${currentTheme.colors.primary} 0%, ${currentTheme.colors.secondary} 100%)`
         }}
       >
         <h1 className="text-4xl font-bold mb-2">{personalInfo.fullName}</h1>
@@ -60,11 +90,11 @@ export const ModernTemplate: React.FC<ModernTemplateProps> = ({ data }) => {
         {/* Bio */}
         {personalInfo.bio && (
           <div>
-            <h2 
+            <h2
               className="text-xl font-bold mb-3 border-b-2 pb-1"
-              style={{ 
+              style={{
                 color: currentTheme.colors.text,
-                borderColor: currentTheme.colors.accent 
+                borderColor: currentTheme.colors.accent
               }}
             >
               About
@@ -78,11 +108,11 @@ export const ModernTemplate: React.FC<ModernTemplateProps> = ({ data }) => {
         {/* Work Experience */}
         {workExperience.length > 0 && (
           <div>
-            <h2 
+            <h2
               className="text-xl font-bold mb-4 border-b-2 pb-1"
-              style={{ 
+              style={{
                 color: currentTheme.colors.text,
-                borderColor: currentTheme.colors.accent 
+                borderColor: currentTheme.colors.accent
               }}
             >
               Experience
@@ -90,7 +120,7 @@ export const ModernTemplate: React.FC<ModernTemplateProps> = ({ data }) => {
             <div className="space-y-6">
               {workExperience.map((exp) => (
                 <div key={exp.id} className="relative pl-6" style={{ borderLeft: `2px solid ${currentTheme.colors.accent}` }}>
-                  <div 
+                  <div
                     className="absolute w-3 h-3 rounded-full -left-2 top-1"
                     style={{ backgroundColor: currentTheme.colors.primary }}
                   ></div>
@@ -119,11 +149,11 @@ export const ModernTemplate: React.FC<ModernTemplateProps> = ({ data }) => {
         {/* Education */}
         {education.length > 0 && (
           <div>
-            <h2 
+            <h2
               className="text-xl font-bold mb-4 border-b-2 pb-1"
-              style={{ 
+              style={{
                 color: currentTheme.colors.text,
-                borderColor: currentTheme.colors.accent 
+                borderColor: currentTheme.colors.accent
               }}
             >
               Education
@@ -152,39 +182,57 @@ export const ModernTemplate: React.FC<ModernTemplateProps> = ({ data }) => {
         {/* Skills */}
         {skills.length > 0 && (
           <div>
-            <h2 
+            <h2
               className="text-xl font-bold mb-4 border-b-2 pb-1"
-              style={{ 
-                color: currentTheme.colors.text,
-                borderColor: currentTheme.colors.accent 
-              }}
+              style={{ color: currentTheme.colors.text, borderColor: currentTheme.colors.accent }}
             >
               Skills
             </h2>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {skills.map((skill) => (
-                <div key={skill.id} className="flex items-center space-x-3">
-                  <div className="flex-1">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-medium" style={{ color: currentTheme.colors.text }}>
-                        {skill.name}
-                      </span>
-                      <span className="text-sm text-gray-500">{skill.level}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="h-2 rounded-full"
-                        style={{ 
-                          backgroundColor: getSkillColor(skill.level),
-                          width: skill.level === 'Expert' ? '100%' : 
-                                 skill.level === 'Advanced' ? '80%' : 
-                                 skill.level === 'Intermediate' ? '60%' : '40%' 
-                        }}
-                      ></div>
+              {skills.map((skill) => {
+                // score prioritas dari skill.lastAssessmentScore, fallback ke assessment map
+                const latest = latestAssessmentForSkill(skill.name);
+                const score = Number.isFinite(skill.lastAssessmentScore)
+                  ? Number(skill.lastAssessmentScore)
+                  : (Number.isFinite(latest?.score) ? Number(latest.score) : null);
+
+                return (
+                  <div key={skill.id} className="flex items-center space-x-3">
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-medium" style={{ color: currentTheme.colors.text }}>
+                          {skill.name}
+                        </span>
+                        <span className="text-sm text-gray-500">{skill.level}</span>
+                      </div>
+
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="h-2 rounded-full"
+                          style={{
+                            backgroundColor: getSkillColor(skill.level),
+                            width:
+                              skill.level === "Expert" ? "100%" :
+                                skill.level === "Advanced" ? "80%" :
+                                  skill.level === "Intermediate" ? "60%" : "40%",
+                          }}
+                        />
+                      </div>
+
+                      {/* ⬇️ Tambahan kecil di bawah progress bar, tanpa ubah layout */}
+                      {score != null && (
+                        <div className="mt-1 text-xs text-gray-500">
+                          Result Assessment:{" "}
+                          <span className="font-medium" style={{ color: currentTheme.colors.text }}>
+                            {score}% ({labelFromScore(score)})
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -192,11 +240,11 @@ export const ModernTemplate: React.FC<ModernTemplateProps> = ({ data }) => {
         {/* Certifications */}
         {certifications.length > 0 && (
           <div>
-            <h2 
+            <h2
               className="text-xl font-bold mb-4 border-b-2 pb-1"
-              style={{ 
+              style={{
                 color: currentTheme.colors.text,
-                borderColor: currentTheme.colors.accent 
+                borderColor: currentTheme.colors.accent
               }}
             >
               Certifications

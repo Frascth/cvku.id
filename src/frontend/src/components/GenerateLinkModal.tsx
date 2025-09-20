@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,19 +8,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Copy,
-  Link,
-  Share2,
-  Download,
-  QrCode,
-  ExternalLink,
-} from "lucide-react";
+import { Copy, Link, Share2, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ResumeLink, useResumeStore } from "../store/useResumeStore";
+import { useResumeStore } from "../store/useResumeStore";
 import { removeNonAlphaNumeric, slugify, slugifyLive } from "@/lib/utils";
-import { useAuth } from "@/hooks/use-auth";
-import { createResumeHandler } from "@/lib/resumeHandler";
 
 interface GenerateLinkModalProps {
   isOpen: boolean;
@@ -33,57 +24,27 @@ export const GenerateLinkModal: React.FC<GenerateLinkModalProps> = ({
 }) => {
   const baseUrl = `${window.location.origin}/resume/`;
 
-  const { resumeData, isPrivate, setResumeLink, updateResumeLinkId } =
-    useResumeStore();
+  const {
+    resumeData,
+    resumeHandler,
+    isPrivate,
+    setResumeLink,
+    updateResumeLinkId,
+  } = useResumeStore();
 
   const { toast } = useToast();
 
-  const [customPath, setCustomPath] = useState<string>(
-    resumeData.resumeLink?.path || crypto.randomUUID()
-  );
+  const [customPath, setCustomPath] = useState<string>("");
+
+  useEffect(() => {
+    setCustomPath(resumeData.resumeLink?.path || crypto.randomUUID());
+  }, [resumeData.resumeLink?.path]);
 
   const [generatedLink, setGeneratedLink] = useState<string>("");
-
-  const { authClient, isAuthenticated } = useAuth();
 
   const [isPathAlreadyUsed, setIsPathAlreadyUsed] = useState<boolean>(false);
 
   const [isCheckingPath, setIsCheckingPath] = useState<boolean>(false);
-
-  const resumeHandler = useMemo(() => {
-    if (authClient) {
-      return createResumeHandler(authClient);
-    }
-
-    return null;
-  }, [authClient]);
-
-  useEffect(() => {
-    const fetchResumeLink = async () => {
-      try {
-        let resumeLink = null;
-
-        if (isAuthenticated) {
-          resumeLink = await resumeHandler.clientGetResumeLink();
-        }
-
-        setResumeLink({
-          resumeLink: resumeLink,
-        });
-
-        if (resumeLink) {
-          setCustomPath(resumeLink.path);
-          setGeneratedLink(`${baseUrl}${resumeLink.path}`);
-        }
-      } catch (error) {
-        console.error("Failed to fetch resume link", error);
-      }
-    };
-
-    if (resumeHandler) {
-      fetchResumeLink();
-    }
-  }, [isAuthenticated, resumeHandler]);
 
   useEffect(() => {
     const timeoutId = setTimeout(async () => {
@@ -269,7 +230,11 @@ export const GenerateLinkModal: React.FC<GenerateLinkModalProps> = ({
                   }}
                 />
               </div>
-              <Button onClick={generateResumeLink} disabled={isPathAlreadyUsed} className={isPathAlreadyUsed ? 'cursor-not-allowed' : ''}>
+              <Button
+                onClick={generateResumeLink}
+                disabled={isPathAlreadyUsed}
+                className={isPathAlreadyUsed ? "cursor-not-allowed" : ""}
+              >
                 Generate Link
               </Button>
             </div>

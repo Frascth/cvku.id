@@ -6,6 +6,6 @@ export function toOptionalMo<T>(value: T | null | undefined): [] | [T] {
   return [value] as [T];
 }
 
-export function toOptionalTs<T>(value: [] | [T]): null | T {
+export function toOptionalTs<T>(value: [] | [T]): T | null {
   return value[0] ?? null;
 }

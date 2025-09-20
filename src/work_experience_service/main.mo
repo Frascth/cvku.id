@@ -64,13 +64,19 @@ persistent actor WorkExperienceService {
 
     Map.set(workExpByPrincipal, Map.phash, caller, workExperiencesById);
 
+    let lidNat = switch (Nat.fromText(request.lid)) {
+      case (?n) n;
+      case null { return #err({ message = "Invalid lid: " # request.lid }) };
+    };
+
     return #ok({
       data = {
-        lid = request.lid;
+        lid = lidNat;
         id = newExperience.id;
       };
       message = "Work experience added.";
     });
+
   };
 
   public shared ({ caller }) func clientBatchUpdate(newWorkExps : [Type.WorkExperience]) : async Type.Response<()> {
@@ -179,8 +185,8 @@ persistent actor WorkExperienceService {
 
     // return as array for more flexibility on frontend
     return #ok({
-        data = Iter.toArray(iterOfDesc);
-        message = "Success generate description.";
+      data = Iter.toArray(iterOfDesc);
+      message = "Success generate description.";
     });
   };
 

@@ -66,26 +66,44 @@ export function createCertificationHandler(authClient: AuthClient) {
 
     // Fungsi untuk menambahkan sertifikasi baru
     // Menerima Omit<Certification, 'id'> (tipe frontend), Mengembalikan Promise<Certification> (tipe frontend)
-    clientAdd: async (data: Omit<Certification, "id">): Promise<Certification> => {
-        const backendRequest = toBackendAddRequest(data); // Konversi data frontend ke request backend
-        const addedBackendCertRaw = await actor.clientAdd(backendRequest); // Menerima BackendCertificationRaw
-        return toFrontendCertification(addedBackendCertRaw); // Konversi ke Frontend Certification
+    clientAdd: async (lid:string, data: Omit<Certification, "id">): Promise<Certification> => {
+        const req = {
+          lid:lid,
+          ...toBackendAddRequest(data),
+        };
+
+        const response = await actor.clientAdd(req); // Menerima BackendCertificationRaw
+
+        if ('err' in response) {
+          throw new Error(response.err.message || "Something went wrong with certification service");
+        }
+
+        return {
+          ...data,
+          lid:lid,
+          id:response.ok.data.id.toString(),
+        }; // Konversi ke Frontend Certification
     },
 
     // Fungsi untuk menyimpan semua sertifikasi (batch update)
     // Menerima Certification[] (tipe frontend), Mengembalikan Promise<Certification[]> (tipe frontend)
-    clientSave: async (certifications: Certification[]): Promise<Certification[]> => {
+    clientSave: async (certifications: Certification[]): Promise<void> => {
       if (certifications.length <= 0) {
-        return [];
+        return;
       }
       const backendCertsRaw = certifications.map(toBackendCertificationRaw); // Konversi ke BackendCertificationRaw[]
-      const resultBackendCertsRaw = await actor.clientBatchUpdate(backendCertsRaw); // Menerima BackendCertificationRaw[]
-      return resultBackendCertsRaw.map(toFrontendCertification); // Konversi kembali ke Frontend Certification[]
+      await actor.clientBatchUpdate(backendCertsRaw); // Menerima BackendCertificationRaw[]
     },
 
     // Fungsi untuk menghapus sertifikasi
-    clientDeleteById: async (id: string): Promise<boolean> => {
-      return await actor.clientDeleteById(id);
+    clientDeleteById: async (id: string): Promise<string> => {
+      const response = await actor.clientDeleteById(id);
+
+      if ('err' in response) {
+        throw new Error(response.err.message || "Something went wrong with certification service");
+      }
+
+      return response.ok.data.id.toString();
     },
   };
 }
