@@ -80,6 +80,10 @@
       "type": "motoko",
       "main": "src/coverleter_service/main.mo"
     },
+    "analytics_service": {
+      "type": "motoko",
+      "main": "src/analytics_service/main.mo"
+    },
     "frontend": {
       "type": "assets",
       "source": [

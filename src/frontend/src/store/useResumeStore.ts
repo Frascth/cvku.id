@@ -15,6 +15,39 @@ import { createAtsHandler } from "@/lib/atsHandler";
 import { createResumeScoreHandler } from "@/lib/resumeScoreHandler";
 import { createResumeHandler } from "@/lib/resumeHandler";
 import { createAssessmentHandler } from "@/lib/assessment/assessmentHandler";
+import {
+  createAnalyticsHandler,
+  type TimeRange,           // "24h" | "7d" | ...
+  type Overview,
+  type ViewsPoint,
+  type DeviceItem,
+  type LocationItem,
+  type TrafficSourceItem,
+  type SectionPerfItem,
+  type ActivityItem,
+} from "@/lib/analyticsHandler";
+
+
+
+type AnalyticsRange = "24h" | "7d" | "30d" | "90d"; // ganti ini
+
+type AnalyticsSlice = {
+  analyticsRange: AnalyticsRange;
+  overviewStats: Overview | null;
+  viewsData: ViewsPoint[];
+  deviceData: DeviceItem[];
+  locationData: LocationItem[];
+  trafficSources: TrafficSourceItem[];
+  topSections: SectionPerfItem[];
+  recentActivity: ActivityItem[];
+  setAnalyticsRange: (r: AnalyticsRange) => void;
+  hydrateAnalytics: (resumeId: string) => Promise<void>;
+  trackViewStart: (resumeId: string) => void;
+  trackViewEnd: (resumeId: string) => void;
+  trackShare: (resumeId: string) => void;
+  trackDownload: (resumeId: string) => void;
+  trackSectionView: (resumeId: string, section: string, durationMs: number) => void;
+};
 
 
 /* =========================
@@ -26,7 +59,7 @@ export type AssessmentLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/\s+/g, "-");
 
-const asId = (t: string) => t.toLowerCase().trim().replace(/\s+/g, "-");
+
 
 export interface AssessmentResult {
   skillId: string;      // 'javascript', 'react', dst (ID internal assessment)
@@ -205,7 +238,8 @@ export interface ResumeStore {
   clearAllAssessments: () => void;
   hasCompletedAssessment: (skillId: string, testLevel?: AssessmentLevel) => boolean;
 
-
+  analyticsHandler: ReturnType<typeof createAnalyticsHandler> | null;
+  analytics: AnalyticsSlice;
 
   // handlers
   resumeHandler: ReturnType<typeof createResumeHandler> | null;
@@ -357,6 +391,31 @@ const mergeById = <T extends { id: string }>(local: T[], server: T[]) => {
 const nextId = (arr: { id: number }[]) =>
   (arr.reduce((m, x) => Math.max(m, x.id), 0) || 0) + 1;
 
+
+const ridKey = "_rid";
+const uuid = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+const device = "Web";              // atau "Desktop"
+const startKey = "resume-view-start";
+const nowSec = () => Math.floor(Date.now() / 1000);
+
+// kalau belum ada
+function ensureRid() {
+  let rid = localStorage.getItem("rid");
+  if (!rid) {
+    rid = (crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+    localStorage.setItem("rid", rid);
+  }
+  return rid;
+}
+
+const formatBigInt = (value: bigint | undefined) => (value === undefined ? 0 : Number(value));
+const formatMs = (ms: number) => {
+    if (ms <= 0) return "0s";
+    const m = Math.floor(ms / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+};
+
 /* =========================
  * Creator (tanpa middleware tags)
  * ========================= */
@@ -385,6 +444,149 @@ const createStoreImpl: SC = (set, get) => ({
   coverLetterBuilder: defaultCoverLetterBuilder,
   coverLetterEditor: defaultCoverLetterEditor,
 
+  analyticsHandler: null,
+  analytics: {
+    analyticsRange: "7d",
+    overviewStats: null,
+    viewsData: [],
+    deviceData: [],
+    locationData: [],
+    trafficSources: [],
+    topSections: [],
+    recentActivity: [],
+
+    setAnalyticsRange: (r) => set(s => ({ analytics: { ...s.analytics, analyticsRange: r } })),
+
+    hydrateAnalytics: async (resumeId) => {
+      const h = get().analyticsHandler;
+      if (!h) return;
+
+      // di state kamu sudah simpan "24h" | "7d" | ...
+      const r = get().analytics.analyticsRange as TimeRange; // import from analyticsHandler
+
+      try {
+        // ⬇️ pakai API wrapper baru (tanpa .ok)
+        const [ov, vw, dv, loc, src, sec, act] = await Promise.all([
+          h.getOverview(resumeId, r),
+          h.getViews(resumeId, r),
+          h.getDevices(resumeId, r),
+          h.getLocations(resumeId, r),
+          h.getSources(resumeId, r),
+          h.getSections(resumeId, r),
+          h.getActivity(resumeId, 20),
+        ]);
+
+        // NOTE: tipe dari candid = bigint; untuk UI jadikan number
+        set((s) => ({
+          analytics: {
+            ...s.analytics,
+            overviewStats: {
+              totalViews: Number(ov.totalViews),
+              uniqueVisitors: Number(ov.uniqueVisitors),
+              avgViewDurationMs: Number(ov.avgViewDurationMs),
+              bounceRatePct: Number(ov.bounceRatePct),
+              shareCount: Number(ov.shareCount),
+              downloadCount: Number(ov.downloadCount),
+            },
+            viewsData: vw.map((p) => ({
+              date: p.date,
+              views: Number(p.views),
+              visitors: Number(p.visitors),
+              durationSecAvg: Number(p.durationSecAvg),
+            })),
+            deviceData: dv,          // sudah array of items
+            locationData: loc,
+            trafficSources: src,
+            topSections: sec,
+            recentActivity: act,
+          },
+        }));
+      } catch (e) {
+        console.error("Failed to hydrate analytics data:", e);
+      }
+    },
+
+
+    trackViewStart: (resumeId) => {
+      const h = get().analyticsHandler; if (!h) return;
+
+      const rid = ensureRid();
+      localStorage.setItem(startKey, String(Date.now()));
+
+      h.track({
+        resumeId,
+        type: "VIEW",
+        visitor: rid,
+        ts: nowSec(),
+        durationMs: 0,
+        device: device,                         // <- optional; boleh hapus kalau tak perlu
+        source: document.referrer || "Direct",  // <- string, bukan array
+        // country: "ID",                        // <- optional
+        // section: "Skills",                    // <- optional
+      });
+    },
+
+
+    trackViewEnd: (resumeId) => {
+      const h = get().analyticsHandler; if (!h) return;
+
+      const rid = ensureRid();
+      const started = Number(localStorage.getItem(startKey) || "0");
+      const dur = started ? Math.max(0, Date.now() - started) : 0;
+      localStorage.removeItem(startKey);
+
+      h.track({
+        resumeId,
+        type: "VIEW",
+        visitor: rid,
+        ts: nowSec(),
+        durationMs: dur,                        // <- number, bukan BigInt
+        device: device,
+        source: document.referrer || "Direct",
+      });
+    },
+
+    trackShare: (resumeId) => {
+      const h = get().analyticsHandler; if (!h) return;
+
+      h.track({
+        resumeId,
+        type: "SHARE",
+        visitor: ensureRid(),
+        ts: nowSec(),
+        device: device,
+      });
+    },
+
+
+    trackDownload: (resumeId) => {
+      const h = get().analyticsHandler; if (!h) return;
+
+      h.track({
+        resumeId,
+        type: "DOWNLOAD",
+        visitor: ensureRid(),
+        ts: nowSec(),
+        device: device,
+      });
+    },
+
+
+    trackSectionView: (resumeId, section, durationMs) => {
+      const h = get().analyticsHandler; if (!h) return;
+
+      h.track({
+        resumeId,
+        type: "SECTION_VIEW",
+        visitor: ensureRid(),
+        ts: nowSec(),
+        durationMs,       // number
+        device: device,
+        section,          // string, bukan array
+      });
+    },
+
+  },
 
   // resume
   updateResume: (patch) =>
@@ -525,7 +727,8 @@ const createStoreImpl: SC = (set, get) => ({
         coverLetterHandler: createCoverLetterHandler(authClient),
         atsHandler: createAtsHandler(authClient),
         scoreHandler: createResumeScoreHandler(authClient),
-        assessmentHandler: createAssessmentHandler(authClient)
+        assessmentHandler: createAssessmentHandler(authClient),
+        analyticsHandler: createAnalyticsHandler(authClient)
       });
 
       // really only init handlers, fetch moved into src/frontend/src/components/ResumeForm.tsx
@@ -550,7 +753,9 @@ const createStoreImpl: SC = (set, get) => ({
       state.socialHandler &&
       state.coverLetterHandler &&
       state.atsHandler &&
-      state.scoreHandler
+      state.scoreHandler &&
+      state.analyticsHandler &&
+      state.assessmentHandler
     ) != null;
   },
 

@@ -43,20 +43,20 @@ module {
   public let ROLE_ADMIN : Role = "admin";
 
   public type CreatedResponse = {
-    lid:Nat;
-    id:Nat
+    lid : Nat;
+    id : Nat;
   };
 
   public type UpdatedResponse = {
-    id:Nat
+    id : Nat;
   };
 
   public type DeletedResponse = {
-    id:Nat
+    id : Nat;
   };
-  
+
   public type SuccessResponse<T> = {
-    data: T;
+    data : T;
     message : Text;
   };
 
@@ -94,7 +94,7 @@ module {
     institution : Text;
     graduationDate : Text;
     gpa : ?Text;
-    description: Text;
+    description : Text;
   };
 
   public type Skill = {
@@ -103,17 +103,17 @@ module {
     level : SkillLevel;
   };
 
-    // ===== Assessment Types =====
+  // ===== Assessment Types =====
 
   // Kita reuse SkillLevel supaya konsisten
   public type AssessmentLevel = SkillLevel;
 
   // Satu hasil assessment untuk 1 skill
   public type Assessment = {
-    skillId : Text;        // contoh: "javascript", "react"
-    score   : Nat;         // 0..100
-    level   : AssessmentLevel;
-    dateISO : Text;        // timestamp ISO dari FE (mis. "2025-09-07T12:34:56.789Z")
+    skillId : Text; // contoh: "javascript", "react"
+    score : Nat; // 0..100
+    level : AssessmentLevel;
+    dateISO : Text; // timestamp ISO dari FE (mis. "2025-09-07T12:34:56.789Z")
   };
 
   // Response payloads untuk operasi CRUD-like
@@ -150,7 +150,7 @@ module {
   public type CustomSection = {
     id : Nat;
     name : Text;
-    items: [CustomSectionItem];
+    items : [CustomSectionItem];
   };
 
   public type CoverLetterBuilder = {
@@ -178,7 +178,7 @@ module {
   public type ResumeLink = {
     id : Nat;
     path : Text;
-    isPublic: Bool;
+    isPublic : Bool;
   };
 
   public type ATSCheck = {
@@ -216,11 +216,10 @@ module {
 
   public type ResumeScoreReport = {
     overall : Nat;
-    rankPercentile : Nat;         // 0..100
+    rankPercentile : Nat; // 0..100
     categories : [ScoreCategory];
     improvements : [Improvement];
   };
-
 
   // resume_service/main.mo assemble all
   public type Resume = {
@@ -232,4 +231,70 @@ module {
     socialLinks : [SocialLink];
     customSections : [CustomSection];
   };
+
+  // ==== Analytics ====
+
+  public type TimeRange = { #H24; #D7; #D30; #D90 };
+
+  public type AnalyticsEventType = { #VIEW; #SHARE; #DOWNLOAD; #SECTION_VIEW };
+
+  // Payload event dari FE → canister
+  public type AnalyticsEventInput = {
+    resumeId : Text;
+    event : AnalyticsEventType;
+    visitor : Text; // random RID cookie dari FE
+    ts : Nat; // unix seconds
+    durationMs : Nat; // 0 jika tidak ada
+    device : Text; // "desktop" | "mobile" | "tablet"
+    country : ?Text; // mis. "US" (boleh null)
+    source : ?Text; // "Direct" | "Google Search" | "LinkedIn" | ...
+    section : ?Text; // untuk #SECTION_VIEW
+  };
+
+  // ---- Responses yang dipakai UI ----
+
+  public type OverviewStats = {
+    totalViews : Nat;
+    uniqueVisitors : Nat;
+    avgViewDurationMs : Nat; // dalam ms
+    bounceRatePct : Nat; // 0..100
+    shareCount : Nat;
+    downloadCount : Nat;
+  };
+
+  public type ViewsPoint = {
+    date : Text; // "YYYY-MM-DD"
+    views : Nat;
+    visitors : Nat;
+    durationSecAvg : Nat; // rata2 detik
+  };
+
+  public type DeviceItem = { name : Text; value : Nat; color : ?Text };
+  public type LocationItem = { country : Text; views : Nat; percentage : Nat };
+  public type TrafficSourceItem = {
+    source : Text;
+    views : Nat;
+    percentage : Nat;
+  };
+  public type SectionPerfItem = {
+    section : Text;
+    viewTime : Text;
+    engagement : Nat;
+  };
+
+  public type ActivityItem = {
+    action : Text; // "Resume viewed" | "Resume shared" | ...
+    location : Text; // negara/region, fallback "Unknown"
+    timeAgo : Text; // "2 minutes ago" dll (opsional bisa FE yg format)
+    device : Text; // Desktop/Mobile/Tablet
+  };
+
+  // Bungkus standar response kamu:
+  public type OverviewResponse = Response<OverviewStats>;
+  public type ViewsResponse = Response<[ViewsPoint]>;
+  public type DevicesResponse = Response<[DeviceItem]>;
+  public type LocationsResponse = Response<[LocationItem]>;
+  public type SourcesResponse = Response<[TrafficSourceItem]>;
+  public type SectionsResponse = Response<[SectionPerfItem]>;
+  public type ActivityResponse = Response<[ActivityItem]>;
 };
